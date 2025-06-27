@@ -1,0 +1,37 @@
+services:
+  db:
+    image: timescale/timescaledb:2.18.0-pg17
+    container_name: timescale_db_control_system
+    command: -p ${POSTGRES_PORT}
+    env_file:
+      - .env
+    volumes:
+      - timescale_db_data:/var/lib/postgresql/data
+    networks:
+      - control-system-network
+    ports:
+      - "${POSTGRES_PORT}:${POSTGRES_PORT}"
+
+  app:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    container_name: control_system_api
+    networks:
+      - control-system-network
+    ports:
+      - ${SERVER_PORT}:${SERVER_PORT}
+    depends_on:
+      - db
+
+volumes:
+  timescale_db_data:
+    name: timescale_db_data
+    external: true
+
+networks:
+  control-system-network:
+    external: true
