@@ -1,5 +1,6 @@
 import uvicorn
 from fastapi import FastAPI
+from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
@@ -35,7 +36,7 @@ def _add_handlers(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, default_response_class=ORJSONResponse)
 
     _include_router(app)
     _add_middleware(app)
