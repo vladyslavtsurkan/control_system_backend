@@ -1,6 +1,6 @@
 services:
   db:
-    image: timescale/timescaledb:2.18.0-pg17
+    image: timescale/timescaledb:2.20.3-pg17
     container_name: timescale_db_control_system
     command: -p ${POSTGRES_PORT}
     env_file:

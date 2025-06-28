@@ -1,4 +1,4 @@
-ARG PYTHON_VERSION=3.13.2
+ARG PYTHON_VERSION=3.13.5
 FROM python:${PYTHON_VERSION}-slim as base
 
 RUN apt-get update && apt-get install -y postgresql-client
