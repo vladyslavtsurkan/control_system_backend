@@ -12,6 +12,13 @@ from app.schemas.auth import (
     RefreshTokenRequest,
 )
 from app.schemas.user import UserBase, UserResponse, UserWithCreds, UserUpdateRequest
+from app.schemas.organization import (
+    OrganizationBase,
+    OrganizationCreateRequest,
+    OrganizationUpdateRequest,
+    OrganizationResponse,
+    OrganizationWithRoleResponse,
+)
 
 __all__ = [
     "SignUpResponse",
@@ -29,4 +36,9 @@ __all__ = [
     "ForgotPasswordResponse",
     "RefreshTokenRequest",
     "UserUpdateRequest",
+    "OrganizationBase",
+    "OrganizationCreateRequest",
+    "OrganizationUpdateRequest",
+    "OrganizationResponse",
+    "OrganizationWithRoleResponse",
 ]
