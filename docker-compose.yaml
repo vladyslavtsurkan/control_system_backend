@@ -27,6 +27,16 @@ services:
     depends_on:
       - db
 
+  redis:
+    image: redis:8.2
+    container_name: redis_control_system
+    networks:
+      - control-system-network
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    env_file:
+      - .env
+
 volumes:
   timescale_db_data:
     name: timescale_db_data

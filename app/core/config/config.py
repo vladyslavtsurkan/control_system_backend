@@ -1,6 +1,8 @@
 from app.core.config.base import BaseConfig
 from app.core.config.db import DataBaseConfig
 from app.core.config.auth import AuthConfig
+from app.core.config.redis import RedisConfig
+from app.core.config.resend import ResendConfig
 from app.core.config.swagger import SwaggerConfig
 
 __all__ = ["Settings", "settings"]
@@ -16,6 +18,8 @@ class Settings(BaseConfig):
     db: DataBaseConfig = DataBaseConfig()
     auth: AuthConfig = AuthConfig()
     swagger: SwaggerConfig = SwaggerConfig()
+    resend: ResendConfig = ResendConfig()
+    redis: RedisConfig = RedisConfig()
 
 
 settings = Settings()

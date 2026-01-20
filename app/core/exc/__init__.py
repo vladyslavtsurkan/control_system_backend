@@ -6,6 +6,18 @@ from app.core.exc.base.exceptions import (
     ForbiddenException,
     BadRequestException,
 )
+from app.core.exc.auth.exceptions import (
+    UserAlreadyExistsException,
+    VerificationCodeAlreadySentException,
+    VerificationFailedOrExpiredException,
+    TokenRefreshException,
+    UserNotFoundException,
+    InvalidCredentialsException,
+    UserDeactivatedException,
+    PasswordInvalidException,
+    ForgotPasswordCodeAlreadySentException,
+    ForgotPasswordCodeFailedOrExpiredException,
+)
 
 __all__ = [
     "ObjectNotFoundException",
@@ -14,4 +26,14 @@ __all__ = [
     "NotAuthorizedException",
     "ForbiddenException",
     "BadRequestException",
+    "UserAlreadyExistsException",
+    "VerificationCodeAlreadySentException",
+    "VerificationFailedOrExpiredException",
+    "TokenRefreshException",
+    "UserNotFoundException",
+    "InvalidCredentialsException",
+    "UserDeactivatedException",
+    "PasswordInvalidException",
+    "ForgotPasswordCodeAlreadySentException",
+    "ForgotPasswordCodeFailedOrExpiredException",
 ]

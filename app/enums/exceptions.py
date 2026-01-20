@@ -11,3 +11,12 @@ class MessageException(BaseStrEnum):
     not_authorized = "not_authorized"
     forbidden = "forbidden"
     bad_request = "bad_request"
+
+    verification_failed_or_expired = "verification_failed_or_expired"
+    password_same_as_old = "password_same_as_old"
+    could_not_validate_credentials = "could_not_validate_credentials"
+    could_not_refresh_token = "could_not_refresh_token"
+    user_deactivated = "user_deactivated"
+    user_not_found = "user_not_found"
+    password_invalid = "password_invalid"
+    forgot_password_code_failed_or_expired = "forgot_password_code_failed_or_expired"

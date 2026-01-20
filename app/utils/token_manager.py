@@ -15,9 +15,6 @@ class JWTTokenManager:
     def create_refresh_token(self, data: dict) -> str:
         return self._create_token(data, self._config.REFRESH_TOKEN_EXPIRE_DAYS * 24)
 
-    def create_infinite_access_token(self, data: dict) -> str:
-        return self._create_token(data)
-
     def _create_token(self, data: dict, expire_hours: int | None = None) -> str:
         to_encode = data.copy()
         expire = datetime.now(timezone.utc) + timedelta(hours=expire_hours)
