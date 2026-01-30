@@ -6,16 +6,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.enums import SecurityPolicyEnum, AuthMethodEnum
 from app.models.base import Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin
+from app.models.mixins import TenantMixin
 
 __all__ = ["OpcServer", "Sensor", "Reading", "Alert"]
 
 
-class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
+class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
     __tablename__ = "opc_servers"
 
-    organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
-    )
     name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     url: Mapped[str] = mapped_column(String(512), nullable=False)

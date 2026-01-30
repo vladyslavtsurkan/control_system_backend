@@ -18,6 +18,11 @@ from app.core.exc.auth.exceptions import (
     ForgotPasswordCodeAlreadySentException,
     ForgotPasswordCodeFailedOrExpiredException,
 )
+from app.core.exc.tenant import (
+    TenantIdRequiredException,
+    InvalidTenantIdFormatException,
+    TenantAccessDeniedException,
+)
 
 __all__ = [
     "ObjectNotFoundException",
@@ -36,4 +41,7 @@ __all__ = [
     "PasswordInvalidException",
     "ForgotPasswordCodeAlreadySentException",
     "ForgotPasswordCodeFailedOrExpiredException",
+    "TenantIdRequiredException",
+    "InvalidTenantIdFormatException",
+    "TenantAccessDeniedException",
 ]

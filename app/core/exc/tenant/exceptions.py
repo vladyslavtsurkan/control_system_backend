@@ -1,0 +1,29 @@
+from app.enums import MessageException
+from app.core.exc.base.exceptions import BadRequestException, ForbiddenException
+
+__all__ = [
+    "TenantIdRequiredException",
+    "InvalidTenantIdFormatException",
+    "TenantAccessDeniedException",
+]
+
+
+class TenantIdRequiredException(BadRequestException):
+    """Exception raised when X-Tenant-ID header is missing."""
+
+    def __init__(self, message: str = MessageException.tenant_id_required) -> None:
+        super().__init__(message=message)
+
+
+class InvalidTenantIdFormatException(BadRequestException):
+    """Exception raised when X-Tenant-ID header has invalid UUID format."""
+
+    def __init__(self, message: str = MessageException.invalid_tenant_id_format) -> None:
+        super().__init__(message=message)
+
+
+class TenantAccessDeniedException(ForbiddenException):
+    """Exception raised when user doesn't have access to the specified tenant."""
+
+    def __init__(self, message: str = MessageException.tenant_access_denied) -> None:
+        super().__init__(message=message)

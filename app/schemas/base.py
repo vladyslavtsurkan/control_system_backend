@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from app.core.constants import PAGINATION_PER_PAGE
 
-__all__ = ["IdBase", "TimestampBase", "PaginatedResponse", "ItemsResponse"]
+__all__ = ["IdBase", "TimestampBase", "PaginatedResponse", "ItemsResponse", "CreatedAtBase", "UpdatedAtBase"]
 
 M = TypeVar("M")
 

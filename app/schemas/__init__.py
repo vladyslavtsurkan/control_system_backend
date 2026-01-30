@@ -19,26 +19,58 @@ from app.schemas.organization import (
     OrganizationResponse,
     OrganizationWithRoleResponse,
 )
+from app.schemas.opc_server import (
+    OpcServerBase,
+    OpcServerCreateRequest,
+    OpcServerUpdateRequest,
+    OpcServerResponse,
+)
+from app.schemas.sensor import (
+    SensorBase,
+    SensorCreateRequest,
+    SensorUpdateRequest,
+    SensorResponse,
+)
+from app.schemas.reading import (
+    ReadingResponse,
+    AlertResponse,
+)
 
 __all__ = [
+    # Auth
     "SignUpResponse",
     "SignUpRequest",
     "SignUpVerifyRequest",
     "SignUpVerifyResponse",
     "LoginRequest",
     "LoginResponse",
-    "UserBase",
-    "UserResponse",
-    "UserWithCreds",
     "ResetPasswordRequest",
     "ResetPasswordResponse",
     "ForgotPasswordRequest",
     "ForgotPasswordResponse",
     "RefreshTokenRequest",
+    # User
+    "UserBase",
+    "UserResponse",
+    "UserWithCreds",
     "UserUpdateRequest",
+    # Organization
     "OrganizationBase",
     "OrganizationCreateRequest",
     "OrganizationUpdateRequest",
     "OrganizationResponse",
     "OrganizationWithRoleResponse",
+    # OPC Server
+    "OpcServerBase",
+    "OpcServerCreateRequest",
+    "OpcServerUpdateRequest",
+    "OpcServerResponse",
+    # Sensor
+    "SensorBase",
+    "SensorCreateRequest",
+    "SensorUpdateRequest",
+    "SensorResponse",
+    # Reading & Alert
+    "ReadingResponse",
+    "AlertResponse",
 ]
