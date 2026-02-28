@@ -38,20 +38,22 @@ async def create_opc_server(
 @router.get("/", response_model=PaginatedResponse[OpcServerResponse], status_code=status.HTTP_200_OK)
 async def get_opc_servers(
     uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
     service: opc_server_service,
     offset: int = offset_query,
     limit: int = limit_query,
 ):
     """Get all OPC servers for the current tenant.
 
-    Requires X-Tenant-ID header. Results are automatically filtered by tenant.
+    Requires X-Tenant-ID header.
     """
-    return await service.get_opc_servers(uow=uow, offset=offset, limit=limit)
+    return await service.get_opc_servers(uow=uow, tenant_id=tenant_id, offset=offset, limit=limit)
 
 
 @router.get("/{server_id}", response_model=OpcServerResponse, status_code=status.HTTP_200_OK)
 async def get_opc_server(
     uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
     server_id: UUID,
     service: opc_server_service,
 ):
@@ -59,12 +61,13 @@ async def get_opc_server(
 
     Requires X-Tenant-ID header.
     """
-    return await service.get_opc_server(uow=uow, server_id=server_id)
+    return await service.get_opc_server(uow=uow, tenant_id=tenant_id, server_id=server_id)
 
 
 @router.patch("/{server_id}", response_model=OpcServerResponse, status_code=status.HTTP_200_OK)
 async def update_opc_server(
     uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
     server_id: UUID,
     request: OpcServerUpdateRequest,
     service: opc_server_service,
@@ -73,12 +76,13 @@ async def update_opc_server(
 
     Requires X-Tenant-ID header.
     """
-    return await service.update_opc_server(uow=uow, server_id=server_id, request=request)
+    return await service.update_opc_server(uow=uow, tenant_id=tenant_id, server_id=server_id, request=request)
 
 
 @router.delete("/{server_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_opc_server(
     uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
     server_id: UUID,
     service: opc_server_service,
 ):
@@ -86,4 +90,4 @@ async def delete_opc_server(
 
     Requires X-Tenant-ID header.
     """
-    await service.delete_opc_server(uow=uow, server_id=server_id)
+    await service.delete_opc_server(uow=uow, tenant_id=tenant_id, server_id=server_id)

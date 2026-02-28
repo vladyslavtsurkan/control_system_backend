@@ -35,15 +35,17 @@ class OpcServerService:
     @staticmethod
     async def get_opc_servers(
         uow: SQLUnitOfWork,
+        tenant_id: UUID,
         offset: int = 0,
         limit: int = PAGINATION_PER_PAGE,
     ) -> PaginatedResponse[OpcServerResponse]:
-        """Get all OPC servers for the tenant (filtered by RLS)."""
+        """Get all OPC servers for the tenant."""
         async with uow:
             servers, count = await uow.opc_server.get_multi(
                 offset=offset,
                 limit=limit,
                 is_deleted=False,
+                organization_id=tenant_id,
             )
             return PaginatedResponse(
                 items=[OpcServerResponse.model_validate(s) for s in servers],
@@ -54,11 +56,14 @@ class OpcServerService:
     @staticmethod
     async def get_opc_server(
         uow: SQLUnitOfWork,
+        tenant_id: UUID,
         server_id: UUID,
     ) -> OpcServerResponse:
         """Get a specific OPC server by ID."""
         async with uow:
-            server = await uow.opc_server.get(filters={"id": server_id, "is_deleted": False})
+            server = await uow.opc_server.get(
+                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id}
+            )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
             return OpcServerResponse.model_validate(server)
@@ -66,6 +71,7 @@ class OpcServerService:
     @staticmethod
     async def update_opc_server(
         uow: SQLUnitOfWork,
+        tenant_id: UUID,
         server_id: UUID,
         request: OpcServerUpdateRequest,
     ) -> OpcServerResponse:
@@ -77,7 +83,7 @@ class OpcServerService:
                 updates["encrypted_password"] = hash_manager.get_hash(request.password)
 
             server = await uow.opc_server.update(
-                filters={"id": server_id, "is_deleted": False},
+                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
                 updates=updates,
             )
             if not server:
@@ -87,12 +93,13 @@ class OpcServerService:
     @staticmethod
     async def delete_opc_server(
         uow: SQLUnitOfWork,
+        tenant_id: UUID,
         server_id: UUID,
     ) -> None:
         """Soft delete an OPC server."""
         async with uow:
             server = await uow.opc_server.update(
-                filters={"id": server_id, "is_deleted": False},
+                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
                 updates={"is_deleted": True},
             )
             if not server:

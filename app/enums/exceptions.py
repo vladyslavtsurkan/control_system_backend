@@ -22,6 +22,15 @@ class MessageException(BaseStrEnum):
     password_invalid = "password_invalid"
     forgot_password_code_failed_or_expired = "forgot_password_code_failed_or_expired"
 
+    # Organization exceptions
+    organization_access_denied = "organization_access_denied"
+    organization_permission_denied = "organization_permission_denied"
+    cannot_remove_owner = "cannot_remove_owner"
+    admin_can_only_remove_members = "admin_can_only_remove_members"
+    owner_cannot_leave = "owner_cannot_leave"
+    cannot_change_own_role = "cannot_change_own_role"
+    role_already_assigned = "role_already_assigned"
+
     # Tenant exceptions
     tenant_id_required = "tenant_id_required"
     invalid_tenant_id_format = "invalid_tenant_id_format"

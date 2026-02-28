@@ -1,3 +1,4 @@
+from app.schemas.base import PaginatedResponse
 from app.schemas.auth import (
     SignUpRequest,
     SignUpResponse,
@@ -18,6 +19,8 @@ from app.schemas.organization import (
     OrganizationUpdateRequest,
     OrganizationResponse,
     OrganizationWithRoleResponse,
+    OrganizationMemberResponse,
+    ChangeRoleRequest,
 )
 from app.schemas.opc_server import (
     OpcServerBase,
@@ -37,6 +40,8 @@ from app.schemas.reading import (
 )
 
 __all__ = [
+    # Base
+    "PaginatedResponse",
     # Auth
     "SignUpResponse",
     "SignUpRequest",
@@ -60,6 +65,8 @@ __all__ = [
     "OrganizationUpdateRequest",
     "OrganizationResponse",
     "OrganizationWithRoleResponse",
+    "OrganizationMemberResponse",
+    "ChangeRoleRequest",
     # OPC Server
     "OpcServerBase",
     "OpcServerCreateRequest",

@@ -9,6 +9,8 @@ __all__ = ["Settings", "settings"]
 
 
 class Settings(BaseConfig):
+    IS_PRODUCTION: bool = False
+
     SERVER_HOST: str
     SERVER_PORT: int
     RELOAD: bool = False

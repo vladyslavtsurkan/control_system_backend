@@ -16,6 +16,11 @@ def _include_router(app: FastAPI) -> None:
 
 
 def _add_middleware(app: FastAPI) -> None:
+    if not settings.IS_PRODUCTION:
+        from app.core.middlewares import ProcessTimeMiddleware
+
+        app.add_middleware(ProcessTimeMiddleware)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.FRONTEND_URL if settings.FRONTEND_URL else ["*"],

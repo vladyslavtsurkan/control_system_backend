@@ -3,11 +3,23 @@ import uuid
 from loguru import logger
 
 from app.core.constants import PAGINATION_PER_PAGE
-from app.core.exc import ForbiddenException, ObjectNotFoundException
+from app.core.exc import (
+    AdminCanOnlyRemoveMembersException,
+    CannotChangeOwnRoleException,
+    CannotRemoveOwnerException,
+    ObjectAlreadyExistsException,
+    ObjectNotFoundException,
+    OrganizationAccessDeniedException,
+    OrganizationPermissionDeniedException,
+    OwnerCannotLeaveException,
+    RoleAlreadyAssignedException,
+)
 from app.enums import UserRoleInOrgEnum
 from app.schemas.base import PaginatedResponse
 from app.schemas.organization import (
+    ChangeRoleRequest,
     OrganizationCreateRequest,
+    OrganizationMemberResponse,
     OrganizationUpdateRequest,
     OrganizationWithRoleResponse,
 )
@@ -75,7 +87,7 @@ class OrganizationService:
                 user_id=current_user.id, organization_id=organization_id
             )
             if role is None:
-                raise ForbiddenException("You don't have access to this organization")
+                raise OrganizationAccessDeniedException
 
             organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
             if not organization:
@@ -121,7 +133,7 @@ class OrganizationService:
     ) -> None:
         """Soft delete an organization if the user is the owner."""
         async with uow:
-            await self._check_access(uow, current_user.id, organization_id, is_deletion=True)
+            await self._check_access(uow, current_user.id, organization_id, is_full_access=True)
 
             organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
             if not organization:
@@ -134,14 +146,190 @@ class OrganizationService:
             )
             logger.info(f"Organization deleted: {organization.name} by user: {current_user.email}")
 
+    async def get_organization_members(
+        self,
+        uow: SQLUnitOfWork,
+        current_user: UserResponse,
+        organization_id: uuid.UUID,
+        offset: int = 0,
+        limit: int = PAGINATION_PER_PAGE,
+    ) -> PaginatedResponse[OrganizationMemberResponse]:
+        """Get all members of an organization. Any member can view."""
+        async with uow:
+            await self._check_membership(uow, current_user.id, organization_id)
+            await self._check_org_exists(uow, organization_id)
+
+            members, count = await uow.organization.get_organization_members(
+                organization_id=organization_id, offset=offset, limit=limit
+            )
+            items = [
+                OrganizationMemberResponse(
+                    id=user.id,
+                    email=user.email,
+                    first_name=user.first_name,
+                    last_name=user.last_name,
+                    created_at=user.created_at,
+                    updated_at=user.updated_at,
+                    role=role,
+                )
+                for user, role in members
+            ]
+            return PaginatedResponse[OrganizationMemberResponse](
+                items=items,
+                count=count,
+                per_page=limit,
+            )
+
+    async def add_user_to_organization(
+        self,
+        uow: SQLUnitOfWork,
+        current_user: UserResponse,
+        organization_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        """Add a user to an organization. Only owners and admins can add."""
+        async with uow:
+            await self._check_access(uow, current_user.id, organization_id)
+            await self._check_org_exists(uow, organization_id)
+
+            target_user = await uow.user.get({"id": user_id})
+            if not target_user:
+                raise ObjectNotFoundException(id_=user_id, model_name="User")
+
+            existing_role = await uow.organization.get_user_role_in_organization(
+                user_id=user_id, organization_id=organization_id
+            )
+            if existing_role is not None:
+                raise ObjectAlreadyExistsException(id_=user_id, model_name="UserOrganizationAssociation")
+
+            await uow.organization.add_user_to_organization(
+                user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.MEMBER
+            )
+            logger.info(f"User {user_id} added to organization {organization_id} by {current_user.email}")
+
+    async def remove_user_from_organization(
+        self,
+        uow: SQLUnitOfWork,
+        current_user: UserResponse,
+        organization_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        """
+        Remove a user from an organization. Owners can remove anyone (except owners).
+        Admins can only remove members.
+        """
+        async with uow:
+            caller_role = await self._check_access(uow, current_user.id, organization_id)
+            await self._check_org_exists(uow, organization_id)
+
+            target_role = await uow.organization.get_user_role_in_organization(
+                user_id=user_id, organization_id=organization_id
+            )
+            if target_role is None:
+                raise ObjectNotFoundException(id_=user_id, model_name="OrganizationMember")
+
+            if target_role == UserRoleInOrgEnum.OWNER:
+                raise CannotRemoveOwnerException
+
+            if caller_role == UserRoleInOrgEnum.ADMIN and target_role != UserRoleInOrgEnum.MEMBER:
+                raise AdminCanOnlyRemoveMembersException
+
+            await uow.organization.remove_user_from_organization(user_id=user_id, organization_id=organization_id)
+            logger.info(f"User {user_id} removed from organization {organization_id} by {current_user.email}")
+
+    async def leave_organization(
+        self,
+        uow: SQLUnitOfWork,
+        current_user: UserResponse,
+        organization_id: uuid.UUID,
+    ) -> None:
+        """Leave an organization. Owners cannot leave."""
+        async with uow:
+            role = await self._check_membership(uow, current_user.id, organization_id)
+            await self._check_org_exists(uow, organization_id)
+
+            if role == UserRoleInOrgEnum.OWNER:
+                raise OwnerCannotLeaveException()
+
+            await uow.organization.remove_user_from_organization(
+                user_id=current_user.id, organization_id=organization_id
+            )
+            logger.info(f"User {current_user.email} left organization {organization_id}")
+
+    async def change_member_role(
+        self,
+        uow: SQLUnitOfWork,
+        current_user: UserResponse,
+        organization_id: uuid.UUID,
+        user_id: uuid.UUID,
+        request: ChangeRoleRequest,
+    ) -> None:
+        """
+        Change a member's role. Only owners can change roles.
+        When transferring ownership, the caller is demoted to admin.
+        """
+        async with uow:
+            await self._check_access(uow, current_user.id, organization_id, is_full_access=True)
+            await self._check_org_exists(uow, organization_id)
+
+            if user_id == current_user.id:
+                raise CannotChangeOwnRoleException
+
+            target_role = await uow.organization.get_user_role_in_organization(
+                user_id=user_id, organization_id=organization_id
+            )
+            if target_role is None:
+                raise ObjectNotFoundException(id_=user_id, model_name="OrganizationMember")
+
+            if target_role == request.role:
+                raise RoleAlreadyAssignedException
+
+            if request.role == UserRoleInOrgEnum.OWNER:
+                # Transfer ownership: promote target to OWNER and demote caller to ADMIN
+                await uow.organization.update_user_role(
+                    user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.OWNER
+                )
+                await uow.organization.update_user_role(
+                    user_id=current_user.id, organization_id=organization_id, role=UserRoleInOrgEnum.ADMIN
+                )
+                logger.info(
+                    f"Ownership of organization {organization_id} transferred "
+                    f"from {current_user.email} to user {user_id}"
+                )
+            else:
+                await uow.organization.update_user_role(
+                    user_id=user_id, organization_id=organization_id, role=request.role
+                )
+                logger.info(
+                    f"User {user_id} role changed to {request.role} in organization "
+                    f"{organization_id} by {current_user.email}"
+                )
+
+    @staticmethod
+    async def _check_membership(
+        uow: SQLUnitOfWork, user_id: uuid.UUID, organization_id: uuid.UUID
+    ) -> UserRoleInOrgEnum:
+        """Check if user is a member of the organization (any role)."""
+        role = await uow.organization.get_user_role_in_organization(user_id=user_id, organization_id=organization_id)
+        if role is None:
+            raise OrganizationAccessDeniedException
+        return role
+
+    @staticmethod
+    async def _check_org_exists(uow: SQLUnitOfWork, organization_id: uuid.UUID) -> None:
+        """Check if the organization exists and is not soft-deleted."""
+        organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
+        if not organization:
+            raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
+
     async def _check_access(
-        self, uow: SQLUnitOfWork, user_id: uuid.UUID, organization_id: uuid.UUID, is_deletion: bool = False
+        self, uow: SQLUnitOfWork, user_id: uuid.UUID, organization_id: uuid.UUID, is_full_access: bool = False
     ) -> UserRoleInOrgEnum:
         """Check if user has access to the organization."""
         role = await uow.organization.get_user_role_in_organization(user_id=user_id, organization_id=organization_id)
         if role is None:
-            raise ForbiddenException("You don't have access to this organization")
-        roles_to_check = self.EDIT_ROLES if not is_deletion else {UserRoleInOrgEnum.OWNER}
+            raise OrganizationAccessDeniedException
+        roles_to_check = self.EDIT_ROLES if not is_full_access else {UserRoleInOrgEnum.OWNER}
         if role not in roles_to_check:
-            raise ForbiddenException("You don't have permission to make this action on this organization")
+            raise OrganizationPermissionDeniedException
         return role

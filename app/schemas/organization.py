@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 
 from app.enums import UserRoleInOrgEnum
 from app.schemas.base import IdBase, CreatedAtBase
+from app.schemas.user import UserResponse
 
 __all__ = [
     "OrganizationBase",
@@ -9,6 +10,8 @@ __all__ = [
     "OrganizationUpdateRequest",
     "OrganizationResponse",
     "OrganizationWithRoleResponse",
+    "OrganizationMemberResponse",
+    "ChangeRoleRequest",
 ]
 
 
@@ -36,3 +39,11 @@ class OrganizationWithRoleResponse(OrganizationResponse):
 
     class Config:
         from_attributes = True
+
+
+class OrganizationMemberResponse(UserResponse):
+    role: UserRoleInOrgEnum
+
+
+class ChangeRoleRequest(BaseModel):
+    role: UserRoleInOrgEnum
