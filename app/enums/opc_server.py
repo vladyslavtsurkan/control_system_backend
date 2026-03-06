@@ -24,7 +24,6 @@ class SecurityPolicyEnum(BaseStrEnum):
 
     # Without security encryption
     NONE = "None"
-
     # Legacy security policies
     BASIC256 = "Basic256"
     BASIC128_RSA15 = "Basic128Rsa15"

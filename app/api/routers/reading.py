@@ -28,7 +28,8 @@ async def get_readings(
     offset: int = offset_query,
     limit: int = limit_query,
 ):
-    """Get readings for a sensor.
+    """
+    Get readings for a sensor.
 
     Requires X-Tenant-ID header.
     """
@@ -44,9 +45,40 @@ async def get_alerts(
     offset: int = offset_query,
     limit: int = limit_query,
 ):
-    """Get alerts for the current tenant.
+    """
+    Get alerts for the current tenant.
 
     Requires X-Tenant-ID header.
     Optionally filter by sensor ID.
     """
     return await service.get_alerts(uow=uow, tenant_id=tenant_id, sensor_id=sensor_id, offset=offset, limit=limit)
+
+
+@alerts_router.post("/{alert_id}/acknowledge", response_model=AlertResponse, status_code=status.HTTP_200_OK)
+async def acknowledge_alert(
+    uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
+    alert_id: UUID,
+    service: alert_service,
+):
+    """
+    Mark an alert as acknowledged.
+
+    Requires X-Tenant-ID header. Idempotent.
+    """
+    return await service.acknowledge_alert(uow=uow, tenant_id=tenant_id, alert_id=alert_id)
+
+
+@alerts_router.post("/{alert_id}/resolve", response_model=AlertResponse, status_code=status.HTTP_200_OK)
+async def resolve_alert(
+    uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
+    alert_id: UUID,
+    service: alert_service,
+):
+    """
+    Mark an alert as resolved.
+
+    Requires X-Tenant-ID header. Idempotent.
+    """
+    return await service.resolve_alert(uow=uow, tenant_id=tenant_id, alert_id=alert_id)

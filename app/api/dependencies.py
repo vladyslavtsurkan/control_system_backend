@@ -6,6 +6,7 @@ from fastapi import Depends, Query, Header
 from app.core.constants import PAGINATION_PER_PAGE
 from app.schemas import UserResponse
 from app.services import (
+    AlertRuleService,
     AuthService,
     UserService,
     OrganizationService,
@@ -27,6 +28,7 @@ __all__ = [
     "sensor_service",
     "reading_service",
     "alert_service",
+    "alert_rule_service",
     "offset_query",
     "limit_query",
     "get_tenant_id",
@@ -45,6 +47,7 @@ opc_server_service = Annotated[OpcServerService, Depends(OpcServerService)]
 sensor_service = Annotated[SensorService, Depends(SensorService)]
 reading_service = Annotated[ReadingService, Depends(ReadingService)]
 alert_service = Annotated[AlertService, Depends(AlertService)]
+alert_rule_service = Annotated[AlertRuleService, Depends(AlertRuleService)]
 tenant_service = Annotated[TenantService, Depends(TenantService)]
 
 offset_query = Query(0, ge=0, description="Number of items to skip")

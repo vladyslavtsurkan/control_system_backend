@@ -28,7 +28,8 @@ async def create_opc_server(
     request: OpcServerCreateRequest,
     service: opc_server_service,
 ):
-    """Create a new OPC server for the current tenant.
+    """
+    Create a new OPC server for the current tenant.
 
     Requires X-Tenant-ID header.
     """
@@ -43,7 +44,8 @@ async def get_opc_servers(
     offset: int = offset_query,
     limit: int = limit_query,
 ):
-    """Get all OPC servers for the current tenant.
+    """
+    Get all OPC servers for the current tenant.
 
     Requires X-Tenant-ID header.
     """
@@ -57,7 +59,8 @@ async def get_opc_server(
     server_id: UUID,
     service: opc_server_service,
 ):
-    """Get a specific OPC server by ID.
+    """
+    Get a specific OPC server by ID.
 
     Requires X-Tenant-ID header.
     """
@@ -72,7 +75,8 @@ async def update_opc_server(
     request: OpcServerUpdateRequest,
     service: opc_server_service,
 ):
-    """Update an OPC server.
+    """
+    Update an OPC server.
 
     Requires X-Tenant-ID header.
     """
@@ -86,7 +90,8 @@ async def delete_opc_server(
     server_id: UUID,
     service: opc_server_service,
 ):
-    """Delete an OPC server (soft delete).
+    """
+    Delete an OPC server (soft delete).
 
     Requires X-Tenant-ID header.
     """

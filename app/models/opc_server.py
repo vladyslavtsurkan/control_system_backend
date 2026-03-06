@@ -1,20 +1,21 @@
 import datetime
 import uuid
+from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, UUID, Enum, UniqueConstraint, Float
+from sqlalchemy import String, Text, ForeignKey, UUID, Enum, Index, Boolean, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.enums import SecurityPolicyEnum, AuthMethodEnum
-from app.models.base import Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin
-from app.models.mixins import TenantMixin
+from app.enums import SecurityPolicyEnum, AuthMethodEnum, AlertSeverityEnum, AlertConditionEnum
+from app.models.base import Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin
 
-__all__ = ["OpcServer", "Sensor", "Reading", "Alert"]
+__all__ = ["OpcServer", "Sensor", "Reading", "AlertRule", "Alert"]
 
 
 class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
     __tablename__ = "opc_servers"
 
-    name: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     url: Mapped[str] = mapped_column(String(512), nullable=False)
 
@@ -30,7 +31,15 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
     organization = relationship("Organization", back_populates="opc_servers", lazy="subquery")
     sensors = relationship("Sensor", back_populates="opc_server", cascade="all, delete-orphan", lazy="subquery")
 
-    __table_args__ = (UniqueConstraint("organization_id", "name", name="uq_opc_server_organization_name"),)
+    __table_args__ = (
+        Index(
+            "uq_active_opc_server_name",
+            "organization_id",
+            "name",
+            unique=True,
+            postgresql_where=text("NOT is_deleted"),
+        ),
+    )
 
 
 class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
@@ -46,9 +55,24 @@ class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
 
     opc_server = relationship("OpcServer", back_populates="sensors", lazy="subquery")
     readings = relationship("Reading", back_populates="sensor", cascade="all, delete-orphan")
+    alert_rules = relationship("AlertRule", back_populates="sensor", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="sensor", cascade="all, delete-orphan")
 
-    __table_args__ = (UniqueConstraint("opc_server_id", "name", name="uq_sensor_opc_server_name"),)
+    __table_args__ = (
+        Index(
+            "uq_active_sensor_name",
+            "opc_server_id",
+            "name",
+            unique=True,
+            postgresql_where=text("NOT is_deleted"),
+        ),
+        Index(
+            "idx_active_sensor_node",
+            "opc_server_id",
+            "node_id",
+            postgresql_where=text("NOT is_deleted"),
+        ),
+    )
 
 
 class Reading(Base):
@@ -58,14 +82,42 @@ class Reading(Base):
     sensor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, primary_key=True
     )
-    value: Mapped[float] = mapped_column(Float, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
     sensor = relationship("Sensor", back_populates="readings", lazy="subquery")
 
     __table_args__ = (
+        Index("idx_readings_sensor_time_desc", "sensor_id", "time"),
+        Index("idx_readings_payload_gin", "payload", postgresql_using="gin"),
         {
             "timescaledb_hypertable": {"time_column_name": "time", "chunk_time_interval": "1 day"},
         },
+    )
+
+
+class AlertRule(Base, UUIDMixin, CreatedAtMixin):
+    __tablename__ = "alert_rules"
+
+    sensor_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    severity: Mapped[AlertSeverityEnum] = mapped_column(
+        Enum(AlertSeverityEnum), nullable=False, default=AlertSeverityEnum.WARNING
+    )
+    condition: Mapped[AlertConditionEnum] = mapped_column(Enum(AlertConditionEnum), nullable=False)
+    threshold: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    sensor = relationship("Sensor", back_populates="alert_rules", lazy="subquery")
+    alerts = relationship("Alert", back_populates="rule", lazy="subquery")
+
+    __table_args__ = (
+        Index(
+            "idx_active_alert_rules",
+            "sensor_id",
+            postgresql_where=text("is_active IS TRUE"),
+        ),
     )
 
 
@@ -75,7 +127,22 @@ class Alert(Base, UUIDMixin, CreatedAtMixin):
     sensor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False
     )
+    rule_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True
+    )
     message: Mapped[str] = mapped_column(Text, nullable=False)
-    triggered_value: Mapped[float] = mapped_column(Float, nullable=False)
+    triggered_value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    is_acknowledged: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    resolved_at: Mapped[datetime.datetime | None] = mapped_column(nullable=True)
 
     sensor = relationship("Sensor", back_populates="alerts", lazy="subquery")
+    rule = relationship("AlertRule", back_populates="alerts", lazy="subquery")
+
+    __table_args__ = (
+        Index("idx_alerts_sensor_id_desc", "sensor_id", "id"),
+        Index(
+            "idx_active_alerts",
+            "sensor_id",
+            postgresql_where=text("resolved_at IS NULL"),
+        ),
+    )

@@ -9,6 +9,7 @@ from app.repositories import (
     OrganizationRepository,
     SensorRepository,
     ReadingRepository,
+    AlertRuleRepository,
     AlertRepository,
     UserRepository,
 )
@@ -44,6 +45,7 @@ class SQLUnitOfWork(ABCUnitOfWork):
         self.opc_server = OpcServerRepository(session=self.session)
         self.sensor = SensorRepository(session=self.session)
         self.reading = ReadingRepository(session=self.session)
+        self.alert_rule = AlertRuleRepository(session=self.session)
         self.alert = AlertRepository(session=self.session)
         return self
 

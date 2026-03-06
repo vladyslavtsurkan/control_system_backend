@@ -8,22 +8,13 @@ from app.schemas.sensor import (
     SensorUpdateRequest,
     SensorResponse,
 )
+from app.services.base import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["SensorService"]
 
 
-class SensorService:
-    @staticmethod
-    async def _validate_sensor_tenant(uow: SQLUnitOfWork, sensor_id: UUID, tenant_id: UUID) -> None:
-        """Validate that a sensor belongs to the given tenant via its OPC server."""
-        sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
-        if not sensor:
-            raise ObjectNotFoundException(str(sensor_id), "Sensor")
-        opc_server = await uow.opc_server.get(filters={"id": sensor.opc_server_id, "organization_id": tenant_id})
-        if not opc_server:
-            raise ObjectNotFoundException(str(sensor_id), "Sensor")
-
+class SensorService(TenantValidationMixin):
     @staticmethod
     async def create_sensor(
         uow: SQLUnitOfWork,
@@ -82,20 +73,20 @@ class SensorService:
                 per_page=limit,
             )
 
-    @staticmethod
     async def get_sensor(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
     ) -> SensorResponse:
         """Get a specific sensor by ID."""
         async with uow:
-            await SensorService._validate_sensor_tenant(uow, sensor_id, tenant_id)
+            await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
             sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
             return SensorResponse.model_validate(sensor)
 
-    @staticmethod
     async def update_sensor(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
@@ -103,7 +94,7 @@ class SensorService:
     ) -> SensorResponse:
         """Update a sensor."""
         async with uow:
-            await SensorService._validate_sensor_tenant(uow, sensor_id, tenant_id)
+            await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
             updates = request.model_dump(exclude_unset=True)
             sensor = await uow.sensor.update(
                 filters={"id": sensor_id, "is_deleted": False},
@@ -113,15 +104,15 @@ class SensorService:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
             return SensorResponse.model_validate(sensor)
 
-    @staticmethod
     async def delete_sensor(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
     ) -> None:
         """Soft delete a sensor."""
         async with uow:
-            await SensorService._validate_sensor_tenant(uow, sensor_id, tenant_id)
+            await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
             sensor = await uow.sensor.update(
                 filters={"id": sensor_id, "is_deleted": False},
                 updates={"is_deleted": True},

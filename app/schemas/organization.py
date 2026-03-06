@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums import UserRoleInOrgEnum
 from app.schemas.base import IdBase, CreatedAtBase
@@ -30,15 +30,13 @@ class OrganizationUpdateRequest(BaseModel):
 
 
 class OrganizationResponse(IdBase, OrganizationBase, CreatedAtBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrganizationWithRoleResponse(OrganizationResponse):
     role: UserRoleInOrgEnum
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class OrganizationMemberResponse(UserResponse):

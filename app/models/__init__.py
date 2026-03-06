@@ -1,7 +1,7 @@
 from app.models.user import User, UserOrganizationAssociation
 from app.models.organization import Organization
-from app.models.opc_server import OpcServer, Sensor, Reading, Alert
-from app.models.mixins import TenantMixin
+from app.models.opc_server import OpcServer, Sensor, Reading, AlertRule, Alert
+from app.models.base import TenantMixin
 
 __all__ = [
     "User",
@@ -10,6 +10,7 @@ __all__ = [
     "OpcServer",
     "Sensor",
     "Reading",
+    "AlertRule",
     "Alert",
     "TenantMixin",
 ]

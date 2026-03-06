@@ -7,9 +7,9 @@ authors = [
 ]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.13,<3.14"
+requires-python = ">=3.14,<3.15"
 dependencies = [
-    "fastapi[all] (>=0.128.0,<0.129.0)",
+    "fastapi[all] (>=0.135.0,<0.136.0)",
     "alembic (>=1.15.2,<2.0.0)",
     "sqlalchemy (>=2.0.40,<3.0.0)",
     "asyncpg (>=0.31.0,<0.32.0)",
@@ -22,6 +22,7 @@ dependencies = [
     "aiohttp (>=3.12.13,<4.0.0)",
     "redis (>=7.1.0,<8.0.0)",
     "argon2-cffi (>=25.1.0,<26.0.0)",
+    "orjson (>=3.11.7,<4.0.0)",
 ]
 
 
@@ -67,8 +68,8 @@ exclude = [
 line-length = 120
 indent-width = 4
 
-# Assume Python 3.12
-target-version = "py312"
+# Assume Python 3.14
+target-version = "py314"
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 lint.fixable = ["ALL"]

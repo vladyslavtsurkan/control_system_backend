@@ -1,4 +1,4 @@
-from pydantic import EmailStr, BaseModel
+from pydantic import EmailStr, BaseModel, ConfigDict
 
 from app.schemas.base import IdBase, TimestampBase
 
@@ -12,16 +12,14 @@ class UserBase(BaseModel):
 
 
 class UserResponse(IdBase, TimestampBase, UserBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserWithCreds(IdBase, UserBase):
     hashed_password: str
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdateRequest(BaseModel):

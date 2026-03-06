@@ -12,7 +12,7 @@ class HashManager:
         try:
             self._hasher.verify(hashed_value, plain_value)
             return True
-        except (VerifyMismatchError, InvalidHash):
+        except VerifyMismatchError, InvalidHash:
             return False
 
     def get_hash(self, value: str) -> str:

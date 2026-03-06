@@ -3,6 +3,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import select, and_, Row, func
 
+from app.core.constants import PAGINATION_PER_PAGE
 from app.enums import UserRoleInOrgEnum
 from app.models import Organization, User
 from app.models.user import UserOrganizationAssociation
@@ -13,7 +14,7 @@ class OrganizationRepository(BaseRepository[Organization]):
     model = Organization
 
     async def get_user_organizations(
-        self, user_id: uuid.UUID, offset: int = 0, limit: int = 10
+        self, user_id: uuid.UUID, offset: int = 0, limit: int = PAGINATION_PER_PAGE
     ) -> tuple[Sequence[Row[tuple[Organization, UserRoleInOrgEnum]]], int]:
         """Get all organizations for a user with their roles (paginated)."""
         query = (
@@ -59,7 +60,6 @@ class OrganizationRepository(BaseRepository[Organization]):
     ) -> UserOrganizationAssociation:
         """Add a user to an organization with a specific role."""
         association = UserOrganizationAssociation(
-            id=uuid.uuid4(),
             user_id=user_id,
             organization_id=organization_id,
             role=role,
@@ -81,7 +81,7 @@ class OrganizationRepository(BaseRepository[Organization]):
             await self._session.delete(association)
 
     async def get_organization_members(
-        self, organization_id: uuid.UUID, offset: int = 0, limit: int = 10
+        self, organization_id: uuid.UUID, offset: int = 0, limit: int = PAGINATION_PER_PAGE
     ) -> tuple[Sequence[Row[tuple[User, UserRoleInOrgEnum]]], int]:
         """Get all members of an organization with their roles (paginated)."""
         query = (

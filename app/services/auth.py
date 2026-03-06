@@ -139,7 +139,7 @@ class AuthService:
                 cls.create_access_token(email),
                 cls.create_refresh_token(email),
             )
-        except (JWTError, KeyError):
+        except JWTError, KeyError:
             raise TokenRefreshException
 
         return LoginResponse(access_token=new_access_token, refresh_token=new_refresh_token)
@@ -176,7 +176,7 @@ class AuthService:
 
                 return UserResponse.model_validate(user)
 
-        except (JWTError, KeyError):
+        except JWTError, KeyError:
             raise InvalidCredentialsException
 
     @staticmethod

@@ -1,27 +1,19 @@
+import datetime
 from uuid import UUID
 
 from app.core.constants import PAGINATION_PER_PAGE
 from app.core.exc import ObjectNotFoundException
 from app.schemas.base import PaginatedResponse
 from app.schemas.reading import ReadingResponse, AlertResponse
+from app.services.base import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["ReadingService", "AlertService"]
 
 
-async def _validate_sensor_tenant(uow: SQLUnitOfWork, sensor_id: UUID, tenant_id: UUID) -> None:
-    """Validate that a sensor belongs to the given tenant via its OPC server."""
-    sensor = await uow.sensor.get(filters={"id": sensor_id})
-    if not sensor:
-        raise ObjectNotFoundException(str(sensor_id), "Sensor")
-    opc_server = await uow.opc_server.get(filters={"id": sensor.opc_server_id, "organization_id": tenant_id})
-    if not opc_server:
-        raise ObjectNotFoundException(str(sensor_id), "Sensor")
-
-
-class ReadingService:
-    @staticmethod
+class ReadingService(TenantValidationMixin):
     async def get_readings(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
@@ -30,7 +22,7 @@ class ReadingService:
     ) -> PaginatedResponse[ReadingResponse]:
         """Get readings for a sensor."""
         async with uow:
-            await _validate_sensor_tenant(uow, sensor_id, tenant_id)
+            await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
 
             readings, count = await uow.reading.get_multi(
                 offset=offset,
@@ -45,9 +37,9 @@ class ReadingService:
             )
 
 
-class AlertService:
-    @staticmethod
+class AlertService(TenantValidationMixin):
     async def get_alerts(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID | None = None,
@@ -57,7 +49,7 @@ class AlertService:
         """Get alerts for the tenant, optionally filtered by sensor."""
         async with uow:
             if sensor_id:
-                await _validate_sensor_tenant(uow, sensor_id, tenant_id)
+                await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
                 filters = {"sensor_id": sensor_id}
             else:
                 # Get all sensors belonging to the tenant's OPC servers
@@ -76,7 +68,7 @@ class AlertService:
             alerts, count = await uow.alert.get_multi(
                 offset=offset,
                 limit=limit,
-                order_by="-created_at",
+                order_by="-id",
                 **filters,
             )
             return PaginatedResponse(
@@ -84,3 +76,47 @@ class AlertService:
                 count=count,
                 per_page=limit,
             )
+
+    async def acknowledge_alert(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        alert_id: UUID,
+    ) -> AlertResponse:
+        """Mark an alert as acknowledged. Idempotent."""
+        async with uow:
+            alert = await uow.alert.get(filters={"id": alert_id})
+            if not alert:
+                raise ObjectNotFoundException(str(alert_id), "Alert")
+            await self._validate_sensor_tenant(uow, alert.sensor_id, tenant_id)
+
+            if alert.is_acknowledged:
+                return AlertResponse.model_validate(alert)
+
+            updated = await uow.alert.update(
+                filters={"id": alert_id},
+                updates={"is_acknowledged": True},
+            )
+            return AlertResponse.model_validate(updated)
+
+    async def resolve_alert(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        alert_id: UUID,
+    ) -> AlertResponse:
+        """Mark an alert as resolved. Idempotent."""
+        async with uow:
+            alert = await uow.alert.get(filters={"id": alert_id})
+            if not alert:
+                raise ObjectNotFoundException(str(alert_id), "Alert")
+            await self._validate_sensor_tenant(uow, alert.sensor_id, tenant_id)
+
+            if alert.resolved_at is not None:
+                return AlertResponse.model_validate(alert)
+
+            updated = await uow.alert.update(
+                filters={"id": alert_id},
+                updates={"resolved_at": datetime.datetime.now(datetime.UTC)},
+            )
+            return AlertResponse.model_validate(updated)

@@ -38,6 +38,12 @@ from app.schemas.reading import (
     ReadingResponse,
     AlertResponse,
 )
+from app.schemas.alert_rule import (
+    AlertRuleBase,
+    AlertRuleCreateRequest,
+    AlertRuleUpdateRequest,
+    AlertRuleResponse,
+)
 
 __all__ = [
     # Base
@@ -80,4 +86,9 @@ __all__ = [
     # Reading & Alert
     "ReadingResponse",
     "AlertResponse",
+    # Alert Rule
+    "AlertRuleBase",
+    "AlertRuleCreateRequest",
+    "AlertRuleUpdateRequest",
+    "AlertRuleResponse",
 ]

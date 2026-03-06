@@ -28,7 +28,8 @@ async def create_sensor(
     request: SensorCreateRequest,
     service: sensor_service,
 ):
-    """Create a new sensor for an OPC server.
+    """
+    Create a new sensor for an OPC server.
 
     Requires X-Tenant-ID header.
     """
@@ -44,7 +45,8 @@ async def get_sensors(
     offset: int = offset_query,
     limit: int = limit_query,
 ):
-    """Get all sensors for the current tenant.
+    """
+    Get all sensors for the current tenant.
 
     Requires X-Tenant-ID header.
     Optionally filter by OPC server ID.
@@ -61,7 +63,8 @@ async def get_sensor(
     sensor_id: UUID,
     service: sensor_service,
 ):
-    """Get a specific sensor by ID.
+    """
+    Get a specific sensor by ID.
 
     Requires X-Tenant-ID header.
     """
@@ -76,7 +79,8 @@ async def update_sensor(
     request: SensorUpdateRequest,
     service: sensor_service,
 ):
-    """Update a sensor.
+    """
+    Update a sensor.
 
     Requires X-Tenant-ID header.
     """
@@ -90,7 +94,8 @@ async def delete_sensor(
     sensor_id: UUID,
     service: sensor_service,
 ):
-    """Delete a sensor (soft delete).
+    """
+    Delete a sensor (soft delete).
 
     Requires X-Tenant-ID header.
     """

@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
+from app.core.constants import PAGINATION_PER_PAGE
 from app.core.exc import ObjectAlreadyExistsException, ObjectNotFoundException
 
 T = TypeVar("T")
@@ -50,7 +51,7 @@ class AbstractRepositoryMixin(ABC, Generic[T]):
 
     @abstractmethod
     async def get_multi(
-        self, offset: int = 0, limit: int = 10, order_by: str | None = None, **filters: Any
+        self, offset: int = 0, limit: int = PAGINATION_PER_PAGE, order_by: str | None = None, **filters: Any
     ) -> tuple[Sequence[T], int]:
         pass
 
@@ -121,7 +122,7 @@ class BaseRepository(AbstractRepositoryMixin[T]):
         return obj
 
     async def get_multi(
-        self, offset: int = 0, limit: int = 10, order_by: str | None = None, **filters: Any
+        self, offset: int = 0, limit: int = PAGINATION_PER_PAGE, order_by: str | None = None, **filters: Any
     ) -> tuple[Sequence[T], int]:
         statement = (
             select(self.model, func.count().over().label("total_count"))

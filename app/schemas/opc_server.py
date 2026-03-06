@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.enums import AuthMethodEnum, SecurityPolicyEnum
 from app.schemas.base import IdBase, CreatedAtBase
@@ -46,5 +46,4 @@ class OpcServerResponse(IdBase, CreatedAtBase):
     authentication_method: AuthMethodEnum
     username: str | None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

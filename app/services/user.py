@@ -39,7 +39,7 @@ class UserService:
 
         request_dict = request.model_dump()
         hashed_password = self._hash_manager.get_hash(request_dict.pop("password"))
-        user = UserWithCreds(id=uuid.uuid4(), hashed_password=hashed_password, is_active=True, **request_dict)
+        user = UserWithCreds(id=uuid.uuid7(), hashed_password=hashed_password, is_active=True, **request_dict)
         code = generate_code()
 
         async with RedisUnitOfWork() as redis_uow:

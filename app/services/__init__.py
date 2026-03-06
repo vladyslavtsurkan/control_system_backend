@@ -1,3 +1,4 @@
+from app.services.alert_rule import AlertRuleService
 from app.services.auth import AuthService
 from app.services.opc_server import OpcServerService
 from app.services.sensor import SensorService
@@ -7,6 +8,7 @@ from app.services.tenant import TenantService
 from app.services.user import UserService
 
 __all__ = [
+    "AlertRuleService",
     "AuthService",
     "OpcServerService",
     "SensorService",
