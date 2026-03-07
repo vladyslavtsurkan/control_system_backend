@@ -19,7 +19,8 @@ from app.uow.base import ABCUnitOfWork
 
 class SQLUnitOfWork(ABCUnitOfWork):
     def __init__(self, tenant_id: UUID | str | None = None, bypass_rls: bool = False) -> None:
-        """Initialize the Unit of Work.
+        """
+        Initialize the Unit of Work.
 
         Args:
             tenant_id: The organization ID for tenant isolation. If provided,
@@ -67,7 +68,8 @@ class SQLUnitOfWork(ABCUnitOfWork):
         await self.session.rollback()
 
     async def set_tenant(self, tenant_id: UUID | str) -> None:
-        """Set tenant context mid-transaction.
+        """
+        Set tenant context mid-transaction.
 
         Args:
             tenant_id: The organization ID for tenant isolation.

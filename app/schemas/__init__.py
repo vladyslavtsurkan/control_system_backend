@@ -46,6 +46,10 @@ from app.schemas.alert_rule import (
     AlertRuleUpdateRequest,
     AlertRuleResponse,
 )
+from app.schemas.collector import (
+    CollectorSensorResponse,
+    CollectorConfigResponse,
+)
 
 __all__ = [
     # Base
@@ -95,4 +99,7 @@ __all__ = [
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
     "AlertRuleResponse",
+    # Collector
+    "CollectorSensorResponse",
+    "CollectorConfigResponse",
 ]

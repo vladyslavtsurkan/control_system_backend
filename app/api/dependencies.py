@@ -8,6 +8,7 @@ from app.schemas import UserResponse
 from app.services import (
     AlertRuleService,
     AuthService,
+    CollectorService,
     UserService,
     OrganizationService,
     OpcServerService,
@@ -23,6 +24,7 @@ __all__ = [
     "user_service",
     "auth_service",
     "current_user",
+    "collector_service",
     "organization_service",
     "opc_server_service",
     "sensor_service",
@@ -42,6 +44,7 @@ current_user = Annotated[UserResponse, Depends(AuthService.get_current_user)]
 
 user_service = Annotated[UserService, Depends(UserService)]
 auth_service = Annotated[AuthService, Depends(AuthService)]
+collector_service = Annotated[CollectorService, Depends(CollectorService)]
 organization_service = Annotated[OrganizationService, Depends(OrganizationService)]
 opc_server_service = Annotated[OpcServerService, Depends(OpcServerService)]
 sensor_service = Annotated[SensorService, Depends(SensorService)]

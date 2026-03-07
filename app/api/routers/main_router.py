@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.routers.alert_rule import router as alert_rule_router
 from app.api.routers.auth import router as auth_router
+from app.api.routers.collector import router as collector_router
 from app.api.routers.opc_server import router as opc_server_router
 from app.api.routers.organization import router as organization_router
 from app.api.routers.reading import readings_router, alerts_router
@@ -20,3 +21,4 @@ router.include_router(sensor_router)
 router.include_router(readings_router)
 router.include_router(alerts_router)
 router.include_router(alert_rule_router)
+router.include_router(collector_router)
