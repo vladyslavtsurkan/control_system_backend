@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.core import settings
 from app.models.base import Base
+import app.models  # noqa: F401 — ensure all models are registered with Base.metadata
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -28,10 +29,17 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
-# other values from the config, defined by the needs of env.py,
-# can be acquired:
-# my_important_option = config.get_main_option("my_important_option")
-# ... etc.
+# Indexes created internally by TimescaleDB that Alembic should never touch.
+TIMESCALEDB_INTERNAL_INDEXES: set[str] = {
+    "readings_time_idx",
+}
+
+
+def include_name(name: str, type_: str, parent_names: dict[str, str | None]) -> bool:
+    """Exclude TimescaleDB-managed indexes from autogenerate diffs."""
+    if type_ == "index" and name in TIMESCALEDB_INTERNAL_INDEXES:
+        return False
+    return True
 
 
 def process_revision_directives(context, revision, directives):
@@ -71,6 +79,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         process_revision_directives=process_revision_directives,
+        include_name=include_name,
     )
 
     with context.begin_transaction():
@@ -82,6 +91,7 @@ def do_run_migrations(connection: Connection) -> None:
         connection=connection,
         target_metadata=target_metadata,
         process_revision_directives=process_revision_directives,
+        include_name=include_name,
     )
 
     with context.begin_transaction():

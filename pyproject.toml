@@ -23,6 +23,7 @@ dependencies = [
     "redis (>=7.1.0,<8.0.0)",
     "argon2-cffi (>=25.1.0,<26.0.0)",
     "orjson (>=3.11.7,<4.0.0)",
+    "cryptography (>=46.0.5,<47.0.0)",
 ]
 
 

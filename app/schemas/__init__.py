@@ -27,6 +27,8 @@ from app.schemas.opc_server import (
     OpcServerCreateRequest,
     OpcServerUpdateRequest,
     OpcServerResponse,
+    ApiKeyCreateResponse,
+    ApiKeyInfoResponse,
 )
 from app.schemas.sensor import (
     SensorBase,
@@ -78,6 +80,8 @@ __all__ = [
     "OpcServerCreateRequest",
     "OpcServerUpdateRequest",
     "OpcServerResponse",
+    "ApiKeyCreateResponse",
+    "ApiKeyInfoResponse",
     # Sensor
     "SensorBase",
     "SensorCreateRequest",

@@ -7,6 +7,7 @@ from app.infra.database import get_session_maker, set_tenant_context, set_rls_by
 from app.repositories import (
     OpcServerRepository,
     OrganizationRepository,
+    CollectorApiKeyRepository,
     SensorRepository,
     ReadingRepository,
     AlertRuleRepository,
@@ -43,6 +44,7 @@ class SQLUnitOfWork(ABCUnitOfWork):
         self.user = UserRepository(session=self.session)
         self.organization = OrganizationRepository(session=self.session)
         self.opc_server = OpcServerRepository(session=self.session)
+        self.collector_api_key = CollectorApiKeyRepository(session=self.session)
         self.sensor = SensorRepository(session=self.session)
         self.reading = ReadingRepository(session=self.session)
         self.alert_rule = AlertRuleRepository(session=self.session)

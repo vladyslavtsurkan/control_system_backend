@@ -5,6 +5,7 @@ from fastapi import APIRouter, Query, status
 from app.api.dependencies import (
     TenantUnitOfWorkDep,
     TenantIdDep,
+    current_user,
     offset_query,
     limit_query,
     sensor_service,
@@ -25,15 +26,16 @@ router = APIRouter(prefix="/sensors", tags=["Sensors"])
 async def create_sensor(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
+    user: current_user,
     request: SensorCreateRequest,
     service: sensor_service,
 ):
     """
     Create a new sensor for an OPC server.
 
-    Requires X-Tenant-ID header.
+    Requires X-Tenant-ID header. Only admin/owner.
     """
-    return await service.create_sensor(uow=uow, tenant_id=tenant_id, request=request)
+    return await service.create_sensor(uow=uow, tenant_id=tenant_id, current_user=user, request=request)
 
 
 @router.get("/", response_model=PaginatedResponse[SensorResponse], status_code=status.HTTP_200_OK)
@@ -76,15 +78,22 @@ async def update_sensor(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
     sensor_id: UUID,
+    user: current_user,
     request: SensorUpdateRequest,
     service: sensor_service,
 ):
     """
     Update a sensor.
 
-    Requires X-Tenant-ID header.
+    Requires X-Tenant-ID header. Only admin/owner.
     """
-    return await service.update_sensor(uow=uow, tenant_id=tenant_id, sensor_id=sensor_id, request=request)
+    return await service.update_sensor(
+        uow=uow,
+        tenant_id=tenant_id,
+        sensor_id=sensor_id,
+        current_user=user,
+        request=request,
+    )
 
 
 @router.delete("/{sensor_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -92,11 +101,12 @@ async def delete_sensor(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
     sensor_id: UUID,
+    user: current_user,
     service: sensor_service,
 ):
     """
     Delete a sensor (soft delete).
 
-    Requires X-Tenant-ID header.
+    Requires X-Tenant-ID header. Only admin/owner.
     """
-    await service.delete_sensor(uow=uow, tenant_id=tenant_id, sensor_id=sensor_id)
+    await service.delete_sensor(uow=uow, tenant_id=tenant_id, sensor_id=sensor_id, current_user=user)

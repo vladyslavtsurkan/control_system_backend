@@ -1,3 +1,4 @@
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -10,6 +11,8 @@ __all__ = [
     "OpcServerCreateRequest",
     "OpcServerUpdateRequest",
     "OpcServerResponse",
+    "ApiKeyCreateResponse",
+    "ApiKeyInfoResponse",
 ]
 
 
@@ -45,5 +48,22 @@ class OpcServerResponse(IdBase, CreatedAtBase):
     security_policy: SecurityPolicyEnum
     authentication_method: AuthMethodEnum
     username: str | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApiKeyCreateResponse(BaseModel):
+    key_prefix: str
+    secret_key: str = Field(..., description="The full API key. Shown only once.")
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ApiKeyInfoResponse(IdBase, CreatedAtBase):
+    opc_server_id: UUID
+    key_prefix: str
+    last_used_at: datetime | None
+    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

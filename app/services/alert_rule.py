@@ -1,8 +1,7 @@
 from uuid import UUID
 
 from app.core.constants import PAGINATION_PER_PAGE
-from app.core.exc import ObjectNotFoundException, OrganizationPermissionDeniedException
-from app.enums import UserRoleInOrgEnum
+from app.core.exc import ObjectNotFoundException
 from app.schemas.alert_rule import (
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
@@ -17,14 +16,6 @@ __all__ = ["AlertRuleService"]
 
 
 class AlertRuleService(TenantValidationMixin):
-    EDIT_ROLES = {UserRoleInOrgEnum.OWNER, UserRoleInOrgEnum.ADMIN}
-
-    async def _check_admin_or_owner(self, uow: SQLUnitOfWork, user_id: UUID, organization_id: UUID) -> None:
-        """Check that the user has admin or owner role in the organization."""
-        role = await uow.organization.get_user_role_in_organization(user_id=user_id, organization_id=organization_id)
-        if role not in self.EDIT_ROLES:
-            raise OrganizationPermissionDeniedException
-
     async def create_alert_rule(
         self,
         uow: SQLUnitOfWork,

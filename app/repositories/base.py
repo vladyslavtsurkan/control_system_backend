@@ -93,11 +93,14 @@ class BaseRepository(AbstractRepositoryMixin[T]):
 
     async def create_or_update(
         self, obj_in: dict[str, Any], conflict_columns: list[str], update_columns: list[str]
-    ) -> None:
+    ) -> T:
         statement = pg_insert(self.model).values(obj_in)
         update_dict = {col: getattr(statement.excluded, col) for col in update_columns if col in obj_in}
-        statement = statement.on_conflict_do_update(index_elements=conflict_columns, set_=update_dict)
-        await self._session.execute(statement)
+        statement = statement.on_conflict_do_update(index_elements=conflict_columns, set_=update_dict).returning(
+            self.model
+        )
+        result = await self._session.execute(statement)
+        return result.scalars().first()
 
     async def create_many(self, obj_in: list[dict[str, Any]]) -> None:
         try:

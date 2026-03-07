@@ -7,9 +7,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.enums import SecurityPolicyEnum, AuthMethodEnum, AlertSeverityEnum, AlertConditionEnum
-from app.models.base import Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin, SoftDeleteMixin, TenantMixin
 
-__all__ = ["OpcServer", "Sensor", "Reading", "AlertRule", "Alert"]
+__all__ = ["OpcServer", "Sensor", "Reading", "AlertRule", "Alert", "CollectorApiKey"]
 
 
 class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
@@ -26,10 +26,11 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
         Enum(AuthMethodEnum), nullable=False, default=AuthMethodEnum.ANONYMOUS
     )
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    encrypted_password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    encrypted_password: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     organization = relationship("Organization", back_populates="opc_servers", lazy="subquery")
     sensors = relationship("Sensor", back_populates="opc_server", cascade="all, delete-orphan", lazy="subquery")
+    api_key = relationship("CollectorApiKey", back_populates="opc_server", uselist=False, cascade="all, delete-orphan")
 
     __table_args__ = (
         Index(
@@ -146,3 +147,16 @@ class Alert(Base, UUIDMixin, CreatedAtMixin):
             postgresql_where=text("resolved_at IS NULL"),
         ),
     )
+
+
+class CollectorApiKey(Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin):
+    __tablename__ = "collector_api_keys"
+
+    opc_server_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("opc_servers.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    key_prefix: Mapped[str] = mapped_column(String(20), nullable=False)
+    hashed_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    last_used_at: Mapped[datetime.datetime | None] = mapped_column(nullable=True)
+
+    opc_server = relationship("OpcServer", back_populates="api_key", lazy="subquery")

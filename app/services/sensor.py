@@ -8,6 +8,7 @@ from app.schemas.sensor import (
     SensorUpdateRequest,
     SensorResponse,
 )
+from app.schemas.user import UserResponse
 from app.services.base import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
@@ -15,14 +16,17 @@ __all__ = ["SensorService"]
 
 
 class SensorService(TenantValidationMixin):
-    @staticmethod
     async def create_sensor(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
+        current_user: UserResponse,
         request: SensorCreateRequest,
     ) -> SensorResponse:
-        """Create a new sensor for an OPC server."""
+        """Create a new sensor for an OPC server. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+
             # Validate the OPC server belongs to the tenant
             opc_server = await uow.opc_server.get(
                 filters={"id": request.opc_server_id, "is_deleted": False, "organization_id": tenant_id}
@@ -90,11 +94,14 @@ class SensorService(TenantValidationMixin):
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
+        current_user: UserResponse,
         request: SensorUpdateRequest,
     ) -> SensorResponse:
-        """Update a sensor."""
+        """Update a sensor. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
             await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
+
             updates = request.model_dump(exclude_unset=True)
             sensor = await uow.sensor.update(
                 filters={"id": sensor_id, "is_deleted": False},
@@ -109,10 +116,13 @@ class SensorService(TenantValidationMixin):
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         sensor_id: UUID,
+        current_user: UserResponse,
     ) -> None:
-        """Soft delete a sensor."""
+        """Soft delete a sensor. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
             await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
+
             sensor = await uow.sensor.update(
                 filters={"id": sensor_id, "is_deleted": False},
                 updates={"is_deleted": True},

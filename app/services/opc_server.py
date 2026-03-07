@@ -7,27 +7,42 @@ from app.schemas.opc_server import (
     OpcServerCreateRequest,
     OpcServerUpdateRequest,
     OpcServerResponse,
+    ApiKeyCreateResponse,
 )
+from app.schemas.user import UserResponse
+from app.services.base import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
-from app.utils.hash_manager import hash_manager
+from app.utils.api_key_manager import api_key_manager
+from app.utils.crypto_manager import crypto_manager
 
 __all__ = ["OpcServerService"]
 
 
-class OpcServerService:
+class OpcServerService(TenantValidationMixin):
     @staticmethod
+    async def _get_opc_server_or_404(uow: SQLUnitOfWork, server_id: UUID, tenant_id: UUID):
+        """Get an OPC server or raise 404."""
+        server = await uow.opc_server.get(filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id})
+        if not server:
+            raise ObjectNotFoundException(str(server_id), "OpcServer")
+        return server
+
     async def create_opc_server(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
+        current_user: UserResponse,
         request: OpcServerCreateRequest,
     ) -> OpcServerResponse:
-        """Create a new OPC server for the tenant."""
+        """Create a new OPC server for the tenant. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+
             data = request.model_dump(exclude={"password"})
             data["organization_id"] = tenant_id
 
             if request.password:
-                data["encrypted_password"] = hash_manager.get_hash(request.password)
+                data["encrypted_password"] = crypto_manager.encrypt(request.password)
 
             opc_server = await uow.opc_server.create(data)
             return OpcServerResponse.model_validate(opc_server)
@@ -68,19 +83,22 @@ class OpcServerService:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
             return OpcServerResponse.model_validate(server)
 
-    @staticmethod
     async def update_opc_server(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         server_id: UUID,
+        current_user: UserResponse,
         request: OpcServerUpdateRequest,
     ) -> OpcServerResponse:
-        """Update an OPC server."""
+        """Update an OPC server. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+
             updates = request.model_dump(exclude_unset=True, exclude={"password"})
 
             if request.password:
-                updates["encrypted_password"] = hash_manager.get_hash(request.password)
+                updates["encrypted_password"] = crypto_manager.encrypt(request.password)
 
             server = await uow.opc_server.update(
                 filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
@@ -90,17 +108,67 @@ class OpcServerService:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
             return OpcServerResponse.model_validate(server)
 
-    @staticmethod
     async def delete_opc_server(
+        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         server_id: UUID,
+        current_user: UserResponse,
     ) -> None:
-        """Soft delete an OPC server."""
+        """Soft delete an OPC server. Only admin/owner."""
         async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+
             server = await uow.opc_server.update(
                 filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
                 updates={"is_deleted": True},
             )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
+
+    async def create_or_rotate_api_key(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        server_id: UUID,
+        current_user: UserResponse,
+    ) -> ApiKeyCreateResponse:
+        """Create or rotate an API key for an OPC server. Only admin/owner."""
+        async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+            await self._get_opc_server_or_404(uow, server_id, tenant_id)
+
+            full_key, key_prefix, hashed_key = api_key_manager.generate()
+
+            record = await uow.collector_api_key.create_or_update(
+                obj_in={
+                    "opc_server_id": server_id,
+                    "key_prefix": key_prefix,
+                    "hashed_key": hashed_key,
+                },
+                conflict_columns=["opc_server_id"],
+                update_columns=["key_prefix", "hashed_key"],
+            )
+            return ApiKeyCreateResponse(
+                key_prefix=key_prefix,
+                secret_key=full_key,
+                created_at=record.created_at,
+            )
+
+    async def revoke_api_key(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        server_id: UUID,
+        current_user: UserResponse,
+    ) -> None:
+        """Revoke (delete) the API key for an OPC server. Only admin/owner."""
+        async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+            await self._get_opc_server_or_404(uow, server_id, tenant_id)
+
+            existing = await uow.collector_api_key.get_by_opc_server_id(server_id)
+            if not existing:
+                raise ObjectNotFoundException(str(server_id), "CollectorApiKey")
+
+            await uow.collector_api_key.delete(filters={"opc_server_id": server_id})

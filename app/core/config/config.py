@@ -1,6 +1,7 @@
 from app.core.config.base import BaseConfig
 from app.core.config.db import DataBaseConfig
 from app.core.config.auth import AuthConfig
+from app.core.config.encryption import EncryptionConfig
 from app.core.config.redis import RedisConfig
 from app.core.config.resend import ResendConfig
 from app.core.config.swagger import SwaggerConfig
@@ -19,6 +20,7 @@ class Settings(BaseConfig):
 
     db: DataBaseConfig = DataBaseConfig()
     auth: AuthConfig = AuthConfig()
+    encryption: EncryptionConfig = EncryptionConfig()
     swagger: SwaggerConfig = SwaggerConfig()
     resend: ResendConfig = ResendConfig()
     redis: RedisConfig = RedisConfig()
