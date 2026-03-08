@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 from app.enums import AlertSeverityEnum, AlertConditionEnum
 from app.schemas.base import IdBase, CreatedAtBase
@@ -44,5 +44,4 @@ class AlertRuleResponse(IdBase, CreatedAtBase):
     threshold: dict[str, Any]
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

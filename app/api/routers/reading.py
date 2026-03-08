@@ -6,7 +6,8 @@ from app.api.dependencies import (
     TenantUnitOfWorkDep,
     TenantIdDep,
     offset_query,
-    limit_query,
+    limit_query_default,
+    limit_query_factory,
     reading_service,
     alert_service,
 )
@@ -26,7 +27,7 @@ async def get_readings(
     service: reading_service,
     sensor_id: UUID = Query(..., description="Sensor ID to get readings for"),
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_factory(1000),
 ):
     """
     Get readings for a sensor.
@@ -43,7 +44,7 @@ async def get_alerts(
     service: alert_service,
     sensor_id: UUID | None = Query(None, description="Filter by sensor ID"),
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """
     Get alerts for the current tenant.

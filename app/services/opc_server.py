@@ -8,6 +8,7 @@ from app.schemas.opc_server import (
     OpcServerUpdateRequest,
     OpcServerResponse,
     ApiKeyCreateResponse,
+    ApiKeyInfoResponse,
 )
 from app.schemas.user import UserResponse
 from app.services.base import TenantValidationMixin
@@ -82,6 +83,21 @@ class OpcServerService(TenantValidationMixin):
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
             return OpcServerResponse.model_validate(server)
+
+    async def get_api_keys(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        current_user: UserResponse,
+    ) -> list[ApiKeyInfoResponse]:
+        """
+        Get all API keys for OPC servers belonging to the tenant. Only admin/owner.
+        The secret keys are not included in the response, only metadata.
+        """
+        async with uow:
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
+            keys = await uow.collector_api_key.get_all_by_organization(tenant_id)
+            return [ApiKeyInfoResponse.model_validate(k) for k in keys]
 
     async def update_opc_server(
         self,

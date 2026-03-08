@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import APIRouter, status
 
-from app.api.dependencies import current_user, SQLUnitOfWorkDep, organization_service, offset_query, limit_query
+from app.api.dependencies import current_user, SQLUnitOfWorkDep, organization_service, offset_query, limit_query_default
 from app.schemas import (
     PaginatedResponse,
     ChangeRoleRequest,
@@ -34,7 +34,7 @@ async def get_my_organizations(
     user: current_user,
     service: organization_service,
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """Get all organizations the current user belongs to."""
     return await service.get_user_organizations(uow=uow, current_user=user, offset=offset, limit=limit)
@@ -87,7 +87,7 @@ async def get_organization_members(
     organization_id: uuid.UUID,
     service: organization_service,
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """Get all members of an organization. Only members can view."""
     return await service.get_organization_members(

@@ -7,7 +7,7 @@ from app.api.dependencies import (
     TenantIdDep,
     current_user,
     offset_query,
-    limit_query,
+    limit_query_default,
     alert_rule_service,
 )
 from app.schemas.alert_rule import (
@@ -45,7 +45,7 @@ async def get_alert_rules(
     service: alert_rule_service,
     sensor_id: UUID | None = Query(None, description="Filter by sensor ID"),
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """
     Get alert rules for the current tenant.

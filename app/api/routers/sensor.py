@@ -7,7 +7,7 @@ from app.api.dependencies import (
     TenantIdDep,
     current_user,
     offset_query,
-    limit_query,
+    limit_query_default,
     sensor_service,
 )
 from app.schemas.base import PaginatedResponse
@@ -45,7 +45,7 @@ async def get_sensors(
     service: sensor_service,
     opc_server_id: UUID | None = Query(None, description="Filter by OPC server ID"),
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """
     Get all sensors for the current tenant.

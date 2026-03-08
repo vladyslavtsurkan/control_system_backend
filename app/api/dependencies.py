@@ -32,7 +32,8 @@ __all__ = [
     "alert_service",
     "alert_rule_service",
     "offset_query",
-    "limit_query",
+    "limit_query_default",
+    "limit_query_factory",
     "get_tenant_id",
     "get_tenant_uow",
     "TenantUnitOfWorkDep",
@@ -53,8 +54,15 @@ alert_service = Annotated[AlertService, Depends(AlertService)]
 alert_rule_service = Annotated[AlertRuleService, Depends(AlertRuleService)]
 tenant_service = Annotated[TenantService, Depends(TenantService)]
 
+
+def limit_query_factory(max_limit: int = 100):
+    """Factory for creating limit query parameters with a specified max limit."""
+
+    return Query(PAGINATION_PER_PAGE, ge=1, le=max_limit, description=f"Number of items to return (max {max_limit})")
+
+
 offset_query = Query(0, ge=0, description="Number of items to skip")
-limit_query = Query(PAGINATION_PER_PAGE, ge=1, le=100, description="Number of items to return")
+limit_query_default = limit_query_factory()
 
 
 async def get_tenant_id(

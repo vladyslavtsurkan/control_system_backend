@@ -182,7 +182,7 @@ class AuthService:
     @staticmethod
     def _validate_user(user: User | None) -> None:
         if not user:
-            raise UserNotFoundException
+            raise UserNotFoundException("Unknown")
 
         AuthManager.ensure_active(user)
 

@@ -1,7 +1,7 @@
 import secrets
 
 from app.core.constants import API_KEY_LENGTH, API_KEY_PREFIX
-from app.utils.hash_manager import hash_manager
+from app.utils.hash_manager import collector_hash_manager
 
 __all__ = ["api_key_manager", "ApiKeyManager"]
 
@@ -23,13 +23,13 @@ class ApiKeyManager:
         raw_key = secrets.token_urlsafe(length)
         full_key = f"{API_KEY_PREFIX}{raw_key}"
         key_prefix = f"{API_KEY_PREFIX}{raw_key[:8]}..."
-        hashed_key = hash_manager.get_hash(full_key)
+        hashed_key = collector_hash_manager.get_hash(full_key)
         return full_key, key_prefix, hashed_key
 
     @staticmethod
     def verify(plain_key: str, hashed_key: str) -> bool:
         """Verify a plain API key against its stored hash."""
-        return hash_manager.verify_hash(plain_key, hashed_key)
+        return collector_hash_manager.verify_hash(plain_key, hashed_key)
 
 
 api_key_manager = ApiKeyManager()

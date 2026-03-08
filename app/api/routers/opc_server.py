@@ -7,7 +7,7 @@ from app.api.dependencies import (
     TenantIdDep,
     current_user,
     offset_query,
-    limit_query,
+    limit_query_default,
     opc_server_service,
 )
 from app.schemas.base import PaginatedResponse
@@ -16,6 +16,7 @@ from app.schemas.opc_server import (
     OpcServerUpdateRequest,
     OpcServerResponse,
     ApiKeyCreateResponse,
+    ApiKeyInfoResponse,
 )
 
 __all__ = ["router"]
@@ -45,7 +46,7 @@ async def get_opc_servers(
     tenant_id: TenantIdDep,
     service: opc_server_service,
     offset: int = offset_query,
-    limit: int = limit_query,
+    limit: int = limit_query_default,
 ):
     """
     Get all OPC servers for the current tenant.
@@ -53,6 +54,21 @@ async def get_opc_servers(
     Requires X-Tenant-ID header.
     """
     return await service.get_opc_servers(uow=uow, tenant_id=tenant_id, offset=offset, limit=limit)
+
+
+@router.get("/api-keys", response_model=list[ApiKeyInfoResponse], status_code=status.HTTP_200_OK)
+async def get_api_keys(
+    uow: TenantUnitOfWorkDep,
+    user: current_user,
+    tenant_id: TenantIdDep,
+    service: opc_server_service,
+):
+    """
+    Get all API keys for the organization's OPC servers.
+
+    Requires X-Tenant-ID header. Only admin/owner. The secret keys are not included in the response, only metadata.
+    """
+    return await service.get_api_keys(uow=uow, tenant_id=tenant_id, current_user=user)
 
 
 @router.get("/{server_id}", response_model=OpcServerResponse, status_code=status.HTTP_200_OK)
