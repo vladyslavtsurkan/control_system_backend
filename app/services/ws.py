@@ -16,7 +16,8 @@ __all__ = ["WsAuthService"]
 class WsAuthService:
     """Issues and validates short-lived single-use WebSocket auth tickets."""
 
-    async def issue_ticket(self, user: UserResponse, org_id: UUID) -> WsTicketResponse:
+    @staticmethod
+    async def issue_ticket(user: UserResponse, org_id: UUID) -> WsTicketResponse:
         """Validate org membership then mint a ticket stored in Redis.
 
         Called from the authenticated REST endpoint ``POST /ws/ticket`` where the

@@ -19,3 +19,6 @@ COLLECTOR_HASHER_TYPE = Type.ID
 # WebSocket settings
 WS_PING_INTERVAL = 30  # seconds
 WS_TICKET_TTL = 30  # seconds — single-use ticket lifetime
+
+# Alerting settings
+DEFAULT_NO_DATA_TIMEOUT_SECONDS = 300  # 5 minutes

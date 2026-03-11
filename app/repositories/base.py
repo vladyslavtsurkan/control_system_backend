@@ -118,8 +118,13 @@ class BaseRepository(AbstractRepositoryMixin[T]):
         statement = statement.on_conflict_do_update(index_elements=conflict_columns, set_=update_dict)
         await self._session.execute(statement)
 
-    async def get(self, filters: dict[str, Any]) -> T | None:
+    async def get(self, filters: dict[str, Any], order_by: str | None = None) -> T | None:
         query = select(self.model).where(and_(*[getattr(self.model, k) == v for k, v in filters.items()]))
+        if order_by:
+            if order_by.startswith("-"):
+                query = query.order_by(desc(getattr(self.model, order_by[1:])).nulls_last())
+            else:
+                query = query.order_by(asc(getattr(self.model, order_by)))
         result = await self._session.execute(query)
         obj = result.scalars().first()
         return obj
@@ -198,8 +203,8 @@ class BaseRepository(AbstractRepositoryMixin[T]):
     async def update_many(self, filters: dict[str, Any], updates: dict[str, Any]) -> int:
         stmt = update(self.model).where(and_(*self.get_where_clauses(filters))).values(**updates)
         result = await self._session.execute(stmt)
-
-        return result.rowcount or 0
+        # Note: result.rowcount returns CursorResult, but still typed as Result[Any]
+        return result.rowcount or 0  # type: ignore[union-attr]
 
     async def delete(self, filters: dict[str, Any]) -> None:
         query = select(self.model).where(and_(*[getattr(self.model, k) == v for k, v in filters.items()]))

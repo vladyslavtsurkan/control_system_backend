@@ -1,7 +1,6 @@
 import asyncio
 from collections.abc import Callable, Awaitable
 
-import aio_pika
 from aio_pika.abc import AbstractIncomingMessage
 
 from app.core.config import settings
@@ -30,14 +29,8 @@ class ConsumeRepository(AbstractRabbitMQRepository):
         exception the message is nacked with ``requeue=False`` so it is
         discarded rather than looping forever.
         """
-        exchange = await self._channel.declare_exchange(
-            settings.rabbitmq.WS_BROADCAST_EXCHANGE,
-            aio_pika.ExchangeType.FANOUT,
-            durable=True,
-        )
-
-        # Exclusive + auto-delete: one queue per FastAPI process replica.
-        queue = await self._channel.declare_queue(exclusive=True, auto_delete=True)
+        exchange = await self._declare_exchange(settings.rabbitmq.WS_BROADCAST_EXCHANGE)
+        queue = await self._declare_queue(exclusive=True, auto_delete=True)
         await queue.bind(exchange)
 
         async with queue.iterator() as it:

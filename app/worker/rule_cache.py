@@ -3,10 +3,8 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from loguru import logger
-from sqlalchemy import select
 
 from app.enums import AlertConditionEnum, AlertSeverityEnum
-from app.models.opc_server import AlertRule, Sensor, OpcServer
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["AlertRuleCached", "RuleCache", "rule_cache"]
@@ -42,15 +40,7 @@ class RuleCache:
         sensor_org: dict[UUID, UUID] = {}
 
         async with SQLUnitOfWork(bypass_rls=True) as uow:
-            # Single query: join AlertRule → Sensor → OpcServer to get org_id
-            stmt = (
-                select(AlertRule, OpcServer.organization_id)
-                .join(Sensor, AlertRule.sensor_id == Sensor.id)
-                .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
-                .where(AlertRule.is_active.is_(True))
-            )
-            result = await uow.session.execute(stmt)
-            rows = result.all()
+            rows = await uow.alert_rule.get_active_with_org()
 
         for rule_row, organization_id in rows:
             cached = AlertRuleCached(

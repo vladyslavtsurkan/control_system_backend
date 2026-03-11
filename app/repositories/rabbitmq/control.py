@@ -1,5 +1,3 @@
-import aio_pika
-
 from app.core.config import settings
 from app.repositories.rabbitmq.base import AbstractRabbitMQRepository
 
@@ -14,12 +12,5 @@ class ControlRepository(AbstractRabbitMQRepository):
     """
 
     async def publish_rule_invalidation(self) -> None:
-        exchange = await self._channel.declare_exchange(
-            settings.rabbitmq.CONTROL_EXCHANGE,
-            aio_pika.ExchangeType.FANOUT,
-            durable=True,
-        )
-        await exchange.publish(
-            aio_pika.Message(body=b"rule_changed"),
-            routing_key="",
-        )
+        exchange = await self._declare_exchange(settings.rabbitmq.CONTROL_EXCHANGE)
+        await self._publish(exchange, b"rule_changed", content_type="text/plain")

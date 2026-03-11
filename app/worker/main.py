@@ -7,6 +7,7 @@ from faststream.rabbit import ExchangeType, RabbitBroker, RabbitExchange, Rabbit
 from loguru import logger
 
 from app.core.config import settings
+from app.core.constants import DEFAULT_NO_DATA_TIMEOUT_SECONDS
 from app.infra.celery.tasks import send_alert_notification
 from app.schemas.worker import TelemetryReading
 from app.schemas.ws import WsBroadcastEvent
@@ -181,7 +182,7 @@ async def _no_data_loop() -> None:
                         limit=1,
                         order_by="-time",
                     )
-                    timeout = rule.threshold.get("timeout_seconds", 300)
+                    timeout = rule.threshold.get("timeout_seconds", DEFAULT_NO_DATA_TIMEOUT_SECONDS)
 
                     is_stale = False
                     if not readings:

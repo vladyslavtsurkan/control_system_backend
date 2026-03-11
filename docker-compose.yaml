@@ -20,12 +20,15 @@ services:
     volumes:
       - .:/app
     container_name: control_system_api
+    command: sh ./scripts/app-start.sh
     networks:
       - control-system-network
     ports:
       - ${SERVER_PORT}:${SERVER_PORT}
     depends_on:
       - db
+      - redis
+      - rabbitmq
 
   worker:
     build:
@@ -36,6 +39,21 @@ services:
       - .:/app
     container_name: control_system_worker
     command: sh ./scripts/worker-start.sh
+    networks:
+      - control-system-network
+    depends_on:
+      - db
+      - rabbitmq
+
+  celery-worker:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    container_name: control_system_celery_worker
+    command: sh ./scripts/celery-worker-start.sh
     networks:
       - control-system-network
     depends_on:
