@@ -10,6 +10,7 @@ from app.schemas.alert_rule import (
 from app.schemas.base import PaginatedResponse
 from app.schemas.user import UserResponse
 from app.services.base import TenantValidationMixin
+from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["AlertRuleService"]
@@ -29,7 +30,11 @@ class AlertRuleService(TenantValidationMixin):
             await self._validate_sensor_tenant(uow, request.sensor_id, tenant_id)
             data = request.model_dump()
             alert_rule = await uow.alert_rule.create(data)
-            return AlertRuleResponse.model_validate(alert_rule)
+            result = AlertRuleResponse.model_validate(alert_rule)
+
+        async with RabbitMQUnitOfWork() as rmq:
+            await rmq.control.publish_rule_invalidation()
+        return result
 
     async def get_alert_rules(
         self,
@@ -105,7 +110,11 @@ class AlertRuleService(TenantValidationMixin):
                 filters={"id": alert_rule_id},
                 updates=updates,
             )
-            return AlertRuleResponse.model_validate(updated)
+            result = AlertRuleResponse.model_validate(updated)
+
+        async with RabbitMQUnitOfWork() as rmq:
+            await rmq.control.publish_rule_invalidation()
+        return result
 
     async def delete_alert_rule(
         self,
@@ -123,3 +132,6 @@ class AlertRuleService(TenantValidationMixin):
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
             await self._validate_sensor_tenant(uow, alert_rule.sensor_id, tenant_id)
             await uow.alert_rule.delete(filters={"id": alert_rule_id})
+
+        async with RabbitMQUnitOfWork() as rmq:
+            await rmq.control.publish_rule_invalidation()

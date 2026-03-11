@@ -5,6 +5,7 @@ from app.core.config.encryption import EncryptionConfig
 from app.core.config.redis import RedisConfig
 from app.core.config.resend import ResendConfig
 from app.core.config.swagger import SwaggerConfig
+from app.core.config.rabbitmq import RabbitMQConfig
 
 __all__ = ["Settings", "settings"]
 
@@ -24,6 +25,7 @@ class Settings(BaseConfig):
     swagger: SwaggerConfig = SwaggerConfig()
     resend: ResendConfig = ResendConfig()
     redis: RedisConfig = RedisConfig()
+    rabbitmq: RabbitMQConfig = RabbitMQConfig()
 
 
 settings = Settings()

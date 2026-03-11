@@ -1,7 +1,7 @@
 import aiohttp
 
 from app.core import settings
-from app.decorators import retry
+from app.core.decorators import retry
 
 
 class ResendException(Exception):

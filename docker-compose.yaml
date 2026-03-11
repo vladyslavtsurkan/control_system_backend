@@ -27,6 +27,21 @@ services:
     depends_on:
       - db
 
+  worker:
+    build:
+      context: .
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    container_name: control_system_worker
+    command: sh ./scripts/worker-start.sh
+    networks:
+      - control-system-network
+    depends_on:
+      - db
+      - rabbitmq
+
   redis:
     image: redis:8.2
     container_name: redis_control_system
@@ -34,6 +49,17 @@ services:
       - control-system-network
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
+    env_file:
+      - .env
+
+  rabbitmq:
+    image: rabbitmq:4.2.4-management
+    container_name: rabbitmq_control_system
+    networks:
+      - control-system-network
+    ports:
+      - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
     env_file:
       - .env
 
@@ -55,6 +81,12 @@ services:
 volumes:
   timescale_db_data:
     name: timescale_db_data
+    external: true
+  redis_data:
+    name: redis_data
+    external: true
+  rabbitmq_data:
+    name: rabbitmq_data
     external: true
 
 networks:

@@ -7,6 +7,7 @@ from app.services.reading import ReadingService, AlertService
 from app.services.organization import OrganizationService
 from app.services.tenant import TenantService
 from app.services.user import UserService
+from app.services.ws import WsAuthService
 
 __all__ = [
     "AlertRuleService",
@@ -19,4 +20,5 @@ __all__ = [
     "OrganizationService",
     "TenantService",
     "UserService",
+    "WsAuthService",
 ]

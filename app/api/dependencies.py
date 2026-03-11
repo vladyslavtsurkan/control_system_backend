@@ -1,8 +1,9 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Query, Header
+from fastapi import Depends, Query, Header, Request, WebSocket
 
+from app.api.ws.manager import ConnectionManager
 from app.core.constants import PAGINATION_PER_PAGE
 from app.schemas import UserResponse
 from app.services import (
@@ -16,6 +17,7 @@ from app.services import (
     ReadingService,
     AlertService,
     TenantService,
+    WsAuthService,
 )
 from app.uow.sql import SQLUnitOfWork
 
@@ -31,14 +33,18 @@ __all__ = [
     "reading_service",
     "alert_service",
     "alert_rule_service",
+    "ws_auth_service",
     "offset_query",
     "limit_query_default",
     "limit_query_factory",
     "get_tenant_id",
     "get_tenant_uow",
+    "ws_authenticate",
     "TenantUnitOfWorkDep",
     "AdminUnitOfWorkDep",
     "TenantIdDep",
+    "ConnectionManagerDep",
+    "ws_authenticate_dep",
 ]
 
 current_user = Annotated[UserResponse, Depends(AuthService.get_current_user)]
@@ -53,11 +59,11 @@ reading_service = Annotated[ReadingService, Depends(ReadingService)]
 alert_service = Annotated[AlertService, Depends(AlertService)]
 alert_rule_service = Annotated[AlertRuleService, Depends(AlertRuleService)]
 tenant_service = Annotated[TenantService, Depends(TenantService)]
+ws_auth_service = Annotated[WsAuthService, Depends(WsAuthService)]
 
 
 def limit_query_factory(max_limit: int = 100):
     """Factory for creating limit query parameters with a specified max limit."""
-
     return Query(PAGINATION_PER_PAGE, ge=1, le=max_limit, description=f"Number of items to return (max {max_limit})")
 
 
@@ -79,9 +85,7 @@ def get_uow() -> SQLUnitOfWork:
     return SQLUnitOfWork()
 
 
-def get_tenant_uow(
-    tenant_id: UUID = Depends(get_tenant_id),
-) -> SQLUnitOfWork:
+def get_tenant_uow(tenant_id: UUID = Depends(get_tenant_id)) -> SQLUnitOfWork:
     """Get a tenant-scoped Unit of Work."""
     return SQLUnitOfWork(tenant_id=tenant_id)
 
@@ -91,7 +95,23 @@ def get_admin_uow() -> SQLUnitOfWork:
     return SQLUnitOfWork(bypass_rls=True)
 
 
+def get_connection_manager(request: Request) -> ConnectionManager:
+    """Retrieve the process-wide WebSocket ConnectionManager from app state."""
+    return request.app.state.ws_manager
+
+
+async def ws_authenticate(
+    websocket: WebSocket,
+    service: ws_auth_service,
+    ticket: str = Query(..., description="Single-use WebSocket auth ticket"),
+) -> tuple[UserResponse, UUID]:
+    """Consume a Redis ticket and return the authenticated user and org."""
+    return await service.authenticate_ticket(websocket, ticket)
+
+
 TenantIdDep = Annotated[UUID, Depends(get_tenant_id)]
 SQLUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_uow)]
 TenantUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_tenant_uow)]
 AdminUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_admin_uow)]
+ConnectionManagerDep = Annotated[ConnectionManager, Depends(get_connection_manager)]
+ws_authenticate_dep = Annotated[tuple[UserResponse, UUID], Depends(ws_authenticate)]

@@ -41,6 +41,10 @@ from app.schemas.reading import (
     AlertResponse,
 )
 from app.schemas.alert_rule import (
+    SingleValueThreshold,
+    RangeThreshold,
+    NoDataThreshold,
+    Threshold,
     AlertRuleBase,
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
@@ -49,6 +53,10 @@ from app.schemas.alert_rule import (
 from app.schemas.collector import (
     CollectorSensorResponse,
     CollectorConfigResponse,
+)
+from app.schemas.worker import (
+    TelemetryPayload,
+    TelemetryReading,
 )
 
 __all__ = [
@@ -99,7 +107,14 @@ __all__ = [
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
     "AlertRuleResponse",
+    "SingleValueThreshold",
+    "RangeThreshold",
+    "NoDataThreshold",
+    "Threshold",
     # Collector
     "CollectorSensorResponse",
     "CollectorConfigResponse",
+    # Worker
+    "TelemetryPayload",
+    "TelemetryReading",
 ]

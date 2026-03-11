@@ -2,6 +2,7 @@ from typing import Self
 
 from app.infra.redis import redis_client
 from app.repositories.redis.verification import VerificationRepository
+from app.repositories.redis.ws_ticket import WsTicketRepository
 from app.uow.base import ABCUnitOfWork
 
 
@@ -13,6 +14,7 @@ class RedisUnitOfWork(ABCUnitOfWork):
     async def __aenter__(self) -> Self:
         self.redis = self._client.get_client()
         self.verification = VerificationRepository(redis=self.redis)
+        self.ws_ticket = WsTicketRepository(redis=self.redis)
         return self
 
     async def __aexit__(self, exc_type: any, exc: any, tb: any) -> None:

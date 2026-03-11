@@ -1,18 +1,40 @@
+import asyncio
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
-from fastapi.responses import ORJSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import ValidationError
 
 from app.api.routers import main_router, swagger
+from app.api.routers.ws import router as ws_router
 from app.core import exc
 from app.core import settings
 from app.core.exc import handlers
+from app.api.ws import ConnectionManager, start_ws_consumer
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    manager = ConnectionManager()
+    app.state.ws_manager = manager
+
+    consumer_task = asyncio.create_task(start_ws_consumer(manager))
+
+    yield
+
+    consumer_task.cancel()
+    try:
+        await consumer_task
+    except asyncio.CancelledError:
+        pass
 
 
 def _include_router(app: FastAPI) -> None:
     app.include_router(main_router.router)
     app.include_router(swagger.router, prefix=main_router.router.prefix)
+    # WebSocket router lives outside /api/v1 — top-level /ws prefix
+    app.include_router(ws_router)
 
 
 def _add_middleware(app: FastAPI) -> None:
@@ -41,7 +63,12 @@ def _add_handlers(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, default_response_class=ORJSONResponse)
+    app = FastAPI(
+        lifespan=lifespan,
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None,
+    )
 
     _include_router(app)
     _add_middleware(app)

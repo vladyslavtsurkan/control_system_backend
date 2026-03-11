@@ -1,3 +1,4 @@
+from typing import Self
 from abc import ABC, abstractmethod
 from uuid import UUID
 
@@ -8,7 +9,7 @@ class ABCUnitOfWork(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def __aenter__(self) -> "ABCUnitOfWork":
+    async def __aenter__(self) -> Self:
         raise NotImplementedError
 
     @abstractmethod
