@@ -5,7 +5,7 @@ from app.core.constants import PAGINATION_PER_PAGE
 from app.core.exc import ObjectNotFoundException
 from app.schemas.base import PaginatedResponse
 from app.schemas.reading import ReadingResponse, AlertResponse
-from app.services.base import TenantValidationMixin
+from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["ReadingService", "AlertService"]

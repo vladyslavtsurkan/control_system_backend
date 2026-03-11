@@ -11,7 +11,7 @@ from app.schemas.opc_server import (
     ApiKeyInfoResponse,
 )
 from app.schemas.user import UserResponse
-from app.services.base import TenantValidationMixin
+from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 from app.utils.api_key_manager import api_key_manager
 from app.utils.crypto_manager import crypto_manager

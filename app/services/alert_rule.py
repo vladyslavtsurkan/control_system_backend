@@ -9,7 +9,7 @@ from app.schemas.alert_rule import (
 )
 from app.schemas.base import PaginatedResponse
 from app.schemas.user import UserResponse
-from app.services.base import TenantValidationMixin
+from app.services.mixins import TenantValidationMixin
 from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 

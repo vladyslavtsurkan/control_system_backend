@@ -9,7 +9,7 @@ from app.schemas.sensor import (
     SensorResponse,
 )
 from app.schemas.user import UserResponse
-from app.services.base import TenantValidationMixin
+from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["SensorService"]
