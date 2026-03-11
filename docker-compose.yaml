@@ -20,7 +20,7 @@ services:
     volumes:
       - .:/app
     container_name: control_system_api
-    command: sh ./scripts/app-start.sh
+    command: bash ./scripts/app-start.sh
     networks:
       - control-system-network
     ports:
@@ -38,7 +38,7 @@ services:
     volumes:
       - .:/app
     container_name: control_system_worker
-    command: sh ./scripts/worker-start.sh
+    command: bash ./scripts/worker-start.sh
     networks:
       - control-system-network
     depends_on:
@@ -53,7 +53,7 @@ services:
     volumes:
       - .:/app
     container_name: control_system_celery_worker
-    command: sh ./scripts/celery-worker-start.sh
+    command: bash ./scripts/celery-worker-start.sh
     networks:
       - control-system-network
     depends_on:

@@ -17,4 +17,4 @@ RUN poetry config virtualenvs.create false \
 COPY . .
 
 RUN chmod +x ./scripts/app-start.sh ./scripts/worker-start.sh ./scripts/celery-worker-start.sh ./scripts/common.sh
-CMD ["sh", "./scripts/app-start.sh"]
+CMD ["bash", "./scripts/app-start.sh"]
