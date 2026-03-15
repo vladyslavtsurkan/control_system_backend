@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
+from app.models import Organization
 from app.models.opc_server import CollectorApiKey, OpcServer, Sensor
 from app.repositories.base import BaseRepository
 
@@ -24,7 +25,12 @@ class CollectorApiKeyRepository(BaseRepository[CollectorApiKey]):
         query = (
             select(CollectorApiKey)
             .join(OpcServer, CollectorApiKey.opc_server_id == OpcServer.id)
-            .where(OpcServer.organization_id == organization_id, OpcServer.is_deleted.is_(False))
+            .join(Organization, OpcServer.organization_id == Organization.id)
+            .where(
+                OpcServer.organization_id == organization_id,
+                OpcServer.is_deleted.is_(False),
+                Organization.is_deleted.is_(False),
+            )
         )
         result = await self._session.execute(query)
         return result.scalars().all()
@@ -36,7 +42,10 @@ class CollectorApiKeyRepository(BaseRepository[CollectorApiKey]):
         """
         query = (
             select(CollectorApiKey)
+            .join(OpcServer, CollectorApiKey.opc_server_id == OpcServer.id)
+            .join(Organization, OpcServer.organization_id == Organization.id)
             .where(CollectorApiKey.key_prefix == key_prefix)
+            .where(OpcServer.is_deleted.is_(False), Organization.is_deleted.is_(False))
             .options(
                 joinedload(CollectorApiKey.opc_server).selectinload(
                     OpcServer.sensors.and_(Sensor.is_deleted == False)  # noqa: E712

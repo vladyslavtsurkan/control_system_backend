@@ -5,13 +5,14 @@ from fastapi import APIRouter, Query, status
 from app.api.dependencies import (
     TenantUnitOfWorkDep,
     TenantIdDep,
-    offset_query,
-    limit_query_default,
-    limit_query_factory,
+    ReadingsRangeDep,
+    sample_every_query,
     reading_service,
     alert_service,
+    offset_query,
+    limit_query_default,
 )
-from app.schemas.base import PaginatedResponse
+from app.schemas.base import PaginatedResponse, ItemsResponse
 from app.schemas.reading import ReadingResponse, AlertResponse
 
 __all__ = ["readings_router", "alerts_router"]
@@ -20,21 +21,29 @@ readings_router = APIRouter(prefix="/readings", tags=["Readings"])
 alerts_router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
 
-@readings_router.get("/", response_model=PaginatedResponse[ReadingResponse], status_code=status.HTTP_200_OK)
+@readings_router.get("/", response_model=ItemsResponse[ReadingResponse], status_code=status.HTTP_200_OK)
 async def get_readings(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
     service: reading_service,
+    readings_range: ReadingsRangeDep,
     sensor_id: UUID = Query(..., description="Sensor ID to get readings for"),
-    offset: int = offset_query,
-    limit: int = limit_query_factory(1000),
+    sample_every: int = sample_every_query,
 ):
     """
     Get readings for a sensor.
 
     Requires X-Tenant-ID header.
     """
-    return await service.get_readings(uow=uow, tenant_id=tenant_id, sensor_id=sensor_id, offset=offset, limit=limit)
+    start_time, end_time = readings_range
+    return await service.get_readings(
+        uow=uow,
+        tenant_id=tenant_id,
+        sensor_id=sensor_id,
+        start_time=start_time,
+        end_time=end_time,
+        sample_every=sample_every,
+    )
 
 
 @alerts_router.get("/", response_model=PaginatedResponse[AlertResponse], status_code=status.HTTP_200_OK)

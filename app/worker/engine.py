@@ -2,10 +2,10 @@ from app.enums import AlertConditionEnum
 from app.schemas.worker import TelemetryReading
 from app.worker.rule_cache import AlertRuleCached, RuleCache
 
-__all__ = ["evaluate_rules"]
+__all__ = ["check_condition", "evaluate_rules"]
 
 
-def _check_condition(condition: AlertConditionEnum, value: float, threshold: dict) -> bool:
+def check_condition(condition: AlertConditionEnum, value: float, threshold: dict) -> bool:
     """
     Evaluate a single condition against a reading value and threshold dict.
 
@@ -75,7 +75,7 @@ def evaluate_rules(
             if rule.condition == AlertConditionEnum.NO_DATA:
                 continue
 
-            if _check_condition(rule.condition, reading.payload.value, rule.threshold):
+            if check_condition(rule.condition, reading.payload.value, rule.threshold):
                 alert_dicts.append(_build_alert_dict(reading, rule))
 
     return reading_dicts, alert_dicts

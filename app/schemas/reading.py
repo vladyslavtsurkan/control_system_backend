@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from app.schemas.alert_rule import AlertRuleBriefResponse
 from app.schemas.base import IdBase, CreatedAtBase
 
 __all__ = [
@@ -22,7 +23,7 @@ class ReadingResponse(BaseModel):
 
 class AlertResponse(IdBase, CreatedAtBase):
     sensor_id: UUID
-    rule_id: UUID | None
+    rule: AlertRuleBriefResponse | None = None
     message: str
     triggered_value: dict[str, Any]
     is_acknowledged: bool

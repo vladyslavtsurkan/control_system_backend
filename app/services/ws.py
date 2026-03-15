@@ -49,17 +49,23 @@ class WsAuthService:
 
         if payload is None:
             await self._reject(websocket, "invalid or expired ticket")
+            return  # unreachable, but satisfies type checker
 
         user_id = UUID(payload["user_id"])
         org_id = UUID(payload["org_id"])
 
         async with SQLUnitOfWork() as uow:
             user = await uow.user.get(filters={"id": user_id})
+            if user is None or not user.is_active:
+                user_response = None
+            else:
+                user_response = UserResponse.model_validate(user)
 
-        if user is None or not user.is_active:
+        if user_response is None:
             await self._reject(websocket, f"user {user_id} not found or inactive")
+            return  # unreachable, but satisfies type checker
 
-        return UserResponse.model_validate(user), org_id
+        return user_response, org_id
 
     @staticmethod
     async def _reject(websocket: WebSocket, reason: str) -> None:

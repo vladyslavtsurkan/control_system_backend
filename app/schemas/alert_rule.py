@@ -14,6 +14,7 @@ __all__ = [
     "AlertRuleBase",
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
+    "AlertRuleBriefResponse",
     "AlertRuleResponse",
 ]
 
@@ -123,6 +124,16 @@ class AlertRuleUpdateRequest(BaseModel):
         if self.condition is not None and self.threshold is not None:
             _validate_condition_threshold(self.condition, self.threshold)
         return self
+
+
+class AlertRuleBriefResponse(IdBase, CreatedAtBase):
+    sensor_id: UUID
+    name: str
+    severity: AlertSeverityEnum
+    condition: AlertConditionEnum
+    is_active: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AlertRuleResponse(IdBase, CreatedAtBase):

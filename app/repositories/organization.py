@@ -13,6 +13,30 @@ from app.repositories.base import BaseRepository
 class OrganizationRepository(BaseRepository[Organization]):
     model = Organization
 
+    async def get_user_role_and_org_state(
+        self,
+        user_id: uuid.UUID,
+        organization_id: uuid.UUID,
+    ) -> tuple[UserRoleInOrgEnum | None, bool]:
+        """Return ``(role, is_active_org)`` for a user and organization in one query."""
+        query = (
+            select(UserOrganizationAssociation.role, Organization.is_deleted)
+            .select_from(Organization)
+            .outerjoin(
+                UserOrganizationAssociation,
+                and_(
+                    UserOrganizationAssociation.organization_id == Organization.id,
+                    UserOrganizationAssociation.user_id == user_id,
+                ),
+            )
+            .where(Organization.id == organization_id)
+        )
+        row = (await self._session.execute(query)).first()
+        if not row:
+            return None, False
+        role, is_deleted = row
+        return role, not is_deleted
+
     async def get_user_organizations(
         self, user_id: uuid.UUID, offset: int = 0, limit: int = PAGINATION_PER_PAGE
     ) -> tuple[Sequence[Row[tuple[Organization, UserRoleInOrgEnum]]], int]:

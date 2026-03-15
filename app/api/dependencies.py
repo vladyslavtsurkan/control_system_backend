@@ -1,10 +1,20 @@
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, Query, Header, Request, WebSocket
+from fastapi import Depends, Query, Header, WebSocket, HTTPException, status
 
 from app.api.ws.manager import ConnectionManager
-from app.core.constants import PAGINATION_PER_PAGE
+from app.core.constants import (
+    PAGINATION_PER_PAGE,
+    PAGINATION_MAX_PER_PAGE,
+    PAGINATION_DEFAULT_OFFSET,
+    READINGS_DEFAULT_RANGE_HOURS,
+    READINGS_DEFAULT_SAMPLE_EVERY,
+    SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
+    SENSOR_PREFETCH_MAX_WINDOW_MINUTES,
+    READINGS_MAX_HOURS_WINDOW,
+)
 from app.schemas import UserResponse
 from app.services import (
     AlertRuleService,
@@ -37,6 +47,9 @@ __all__ = [
     "offset_query",
     "limit_query_default",
     "limit_query_factory",
+    "sample_every_query",
+    "prefetch_window_minutes_query",
+    "get_readings_range",
     "get_tenant_id",
     "get_tenant_uow",
     "ws_authenticate",
@@ -45,7 +58,10 @@ __all__ = [
     "TenantIdDep",
     "ConnectionManagerDep",
     "ws_authenticate_dep",
+    "ReadingsRangeDep",
 ]
+
+from app.utils.utils import ensure_utc
 
 current_user = Annotated[UserResponse, Depends(AuthService.get_current_user)]
 
@@ -62,13 +78,49 @@ tenant_service = Annotated[TenantService, Depends(TenantService)]
 ws_auth_service = Annotated[WsAuthService, Depends(WsAuthService)]
 
 
-def limit_query_factory(max_limit: int = 100):
+def limit_query_factory(max_limit: int = PAGINATION_MAX_PER_PAGE):
     """Factory for creating limit query parameters with a specified max limit."""
     return Query(PAGINATION_PER_PAGE, ge=1, le=max_limit, description=f"Number of items to return (max {max_limit})")
 
 
-offset_query = Query(0, ge=0, description="Number of items to skip")
+offset_query = Query(PAGINATION_DEFAULT_OFFSET, ge=0, description="Number of items to skip")
 limit_query_default = limit_query_factory()
+sample_every_query = Query(
+    READINGS_DEFAULT_SAMPLE_EVERY,
+    ge=1,
+    description="Return every Nth reading (1 means all readings)",
+)
+prefetch_window_minutes_query = Query(
+    SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
+    ge=1,
+    le=SENSOR_PREFETCH_MAX_WINDOW_MINUTES,
+    description=f"Prefetch readings for the last N minutes (max {SENSOR_PREFETCH_MAX_WINDOW_MINUTES})",
+)
+
+
+def get_readings_range(
+    start_time: datetime | None = Query(None, description="Range start time. Defaults to end_time - 24h"),
+    end_time: datetime | None = Query(None, description="Range end time. Defaults to current UTC time"),
+) -> tuple[datetime, datetime]:
+    datetime_now = datetime.now(timezone.utc)
+    resolved_end = ensure_utc(end_time) if end_time else datetime_now
+    resolved_start = (
+        ensure_utc(start_time) if start_time else (resolved_end - timedelta(hours=READINGS_DEFAULT_RANGE_HOURS))
+    )
+
+    if resolved_start > resolved_end:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="start_time must be less than or equal to end_time",
+        )
+
+    if (resolved_end - resolved_start) > timedelta(hours=READINGS_MAX_HOURS_WINDOW):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Time range cannot exceed {READINGS_MAX_HOURS_WINDOW} hours",
+        )
+
+    return resolved_start, resolved_end
 
 
 async def get_tenant_id(
@@ -95,9 +147,9 @@ def get_admin_uow() -> SQLUnitOfWork:
     return SQLUnitOfWork(bypass_rls=True)
 
 
-def get_connection_manager(request: Request) -> ConnectionManager:
+def get_connection_manager(websocket: WebSocket) -> ConnectionManager:
     """Retrieve the process-wide WebSocket ConnectionManager from app state."""
-    return request.app.state.ws_manager
+    return websocket.app.state.ws_manager
 
 
 async def ws_authenticate(
@@ -115,3 +167,4 @@ TenantUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_tenant_uow)]
 AdminUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_admin_uow)]
 ConnectionManagerDep = Annotated[ConnectionManager, Depends(get_connection_manager)]
 ws_authenticate_dep = Annotated[tuple[UserResponse, UUID], Depends(ws_authenticate)]
+ReadingsRangeDep = Annotated[tuple[datetime, datetime], Depends(get_readings_range)]

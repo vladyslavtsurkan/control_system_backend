@@ -15,6 +15,8 @@ class VerificationRepository(BaseRedisRepository):
         for key, value in data_dict.items():
             if isinstance(value, bool):
                 data_dict[key] = int(value)
+            elif value is None:
+                data_dict[key] = ""
         data_dict["code"] = code
         await self.set(key=full_key, value=data_dict)
 
@@ -24,6 +26,8 @@ class VerificationRepository(BaseRedisRepository):
         if not item or item.get("code") != code:
             return None
         item.pop("code", None)
+        # Convert empty strings back to None for optional fields
+        item = {k: (None if v == "" else v) for k, v in item.items()}
         return UserWithCreds(**item)
 
     async def check_verification(self, email: str) -> bool:

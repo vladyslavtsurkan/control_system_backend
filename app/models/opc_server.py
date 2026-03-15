@@ -122,7 +122,7 @@ class AlertRule(Base, UUIDMixin, CreatedAtMixin):
     )
 
 
-class Alert(Base, UUIDMixin, CreatedAtMixin):
+class Alert(Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin):
     __tablename__ = "alerts"
 
     sensor_id: Mapped[uuid.UUID] = mapped_column(
@@ -141,6 +141,13 @@ class Alert(Base, UUIDMixin, CreatedAtMixin):
 
     __table_args__ = (
         Index("idx_alerts_sensor_id_desc", "sensor_id", "id"),
+        Index(
+            "uq_active_alert_per_rule",
+            "sensor_id",
+            "rule_id",
+            unique=True,
+            postgresql_where=text("resolved_at IS NULL AND rule_id IS NOT NULL"),
+        ),
         Index(
             "idx_active_alerts",
             "sensor_id",

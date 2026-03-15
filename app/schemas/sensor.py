@@ -3,12 +3,14 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.base import IdBase, CreatedAtBase
+from app.schemas.reading import ReadingResponse
 
 __all__ = [
     "SensorBase",
     "SensorCreateRequest",
     "SensorUpdateRequest",
     "SensorResponse",
+    "SensorWithReadingsResponse",
 ]
 
 
@@ -38,3 +40,7 @@ class SensorResponse(IdBase, CreatedAtBase):
     units: str | None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SensorWithReadingsResponse(SensorResponse):
+    readings: list[ReadingResponse] | None = None

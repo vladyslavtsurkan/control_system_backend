@@ -1,13 +1,20 @@
+import datetime
+from collections import defaultdict
 from uuid import UUID
 
-from app.core.constants import PAGINATION_PER_PAGE
+from app.core.constants import (
+    PAGINATION_PER_PAGE,
+    SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
+)
 from app.core.exc import ObjectNotFoundException
 from app.schemas.base import PaginatedResponse
 from app.schemas.sensor import (
     SensorCreateRequest,
     SensorUpdateRequest,
     SensorResponse,
+    SensorWithReadingsResponse,
 )
+from app.schemas.reading import ReadingResponse
 from app.schemas.user import UserResponse
 from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
@@ -45,34 +52,42 @@ class SensorService(TenantValidationMixin):
         opc_server_id: UUID | None = None,
         offset: int = 0,
         limit: int = PAGINATION_PER_PAGE,
-    ) -> PaginatedResponse[SensorResponse]:
+        prefetch_readings: bool = False,
+        prefetch_window_minutes: int = SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
+    ) -> PaginatedResponse[SensorWithReadingsResponse]:
         """Get all sensors for the tenant, optionally filtered by OPC server."""
         async with uow:
-            if opc_server_id:
-                # Validate the OPC server belongs to the tenant
-                opc_server = await uow.opc_server.get(
-                    filters={"id": opc_server_id, "is_deleted": False, "organization_id": tenant_id}
-                )
-                if not opc_server:
-                    raise ObjectNotFoundException(str(opc_server_id), "OpcServer")
-                filters = {"is_deleted": False, "opc_server_id": opc_server_id}
-            else:
-                # Get all OPC server IDs for this tenant
-                tenant_servers, _ = await uow.opc_server.get_multi(
-                    is_deleted=False, organization_id=tenant_id, limit=10000
-                )
-                server_ids = [s.id for s in tenant_servers]
-                if not server_ids:
-                    return PaginatedResponse(items=[], count=0, per_page=limit)
-                filters = {"is_deleted": False, "opc_server_id__in": server_ids}
+            await SensorService._validate_active_organization(uow, tenant_id)
 
-            sensors, count = await uow.sensor.get_multi(
+            sensors, count = await uow.sensor.get_multi_for_tenant(
+                tenant_id=tenant_id,
                 offset=offset,
                 limit=limit,
-                **filters,
+                opc_server_id=opc_server_id,
             )
+
+            sensor_readings: dict[UUID, list[ReadingResponse]] = defaultdict(list)
+            if prefetch_readings and sensors:
+                end_time = datetime.datetime.now(datetime.UTC)
+                start_time = end_time - datetime.timedelta(minutes=prefetch_window_minutes)
+                readings = await uow.reading.get_recent_for_sensors(
+                    sensor_ids=[sensor.id for sensor in sensors],
+                    start_time=start_time,
+                    end_time=end_time,
+                )
+                for reading in readings:
+                    sensor_readings[reading.sensor_id].append(ReadingResponse.model_validate(reading))
+
+            items: list[SensorWithReadingsResponse] = []
+            for sensor in sensors:
+                base_payload = SensorResponse.model_validate(sensor)
+                payload = SensorWithReadingsResponse(**base_payload.model_dump())
+                if prefetch_readings:
+                    payload = payload.model_copy(update={"readings": sensor_readings.get(sensor.id, [])})
+                items.append(payload)
+
             return PaginatedResponse(
-                items=[SensorResponse.model_validate(s) for s in sensors],
+                items=items,
                 count=count,
                 per_page=limit,
             )
@@ -85,8 +100,9 @@ class SensorService(TenantValidationMixin):
     ) -> SensorResponse:
         """Get a specific sensor by ID."""
         async with uow:
-            await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
-            sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
+            sensor = await self._get_active_sensor_for_tenant(uow, sensor_id, tenant_id)
+            if not sensor:
+                raise ObjectNotFoundException(str(sensor_id), "Sensor")
             return SensorResponse.model_validate(sensor)
 
     async def update_sensor(

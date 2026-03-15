@@ -4,6 +4,7 @@ from app.core.exc import (
     TenantIdRequiredException,
     InvalidTenantIdFormatException,
     TenantAccessDeniedException,
+    ObjectNotFoundException,
 )
 from app.schemas.user import UserResponse
 from app.uow.sql import SQLUnitOfWork
@@ -41,8 +42,14 @@ class TenantService:
 
         # Validate user has access to this tenant
         async with SQLUnitOfWork() as uow:
-            user_role = await uow.organization.get_user_role_in_organization(user_id=user.id, organization_id=tenant_id)
+            user_role, is_active_org = await uow.organization.get_user_role_and_org_state(
+                user_id=user.id,
+                organization_id=tenant_id,
+            )
             if not user_role:
                 raise TenantAccessDeniedException()
+
+            if not is_active_org:
+                raise ObjectNotFoundException(str(tenant_id), "Organization")
 
         return tenant_id

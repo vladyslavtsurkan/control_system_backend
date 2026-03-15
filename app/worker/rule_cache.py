@@ -40,27 +40,30 @@ class RuleCache:
         sensor_org: dict[UUID, UUID] = {}
 
         async with SQLUnitOfWork(bypass_rls=True) as uow:
-            rows = await uow.alert_rule.get_active_with_org()
+            sensor_rows = await uow.sensor.get_active_sensor_org_pairs()
+            for sensor_id, organization_id in sensor_rows:
+                sensor_org[sensor_id] = organization_id
 
-        for rule_row, organization_id in rows:
-            cached = AlertRuleCached(
-                id=rule_row.id,
-                sensor_id=rule_row.sensor_id,
-                condition=rule_row.condition,
-                threshold=rule_row.threshold,
-                severity=rule_row.severity,
-                name=rule_row.name,
-            )
-            rules_by_sensor[cached.sensor_id].append(cached)
-            sensor_org[cached.sensor_id] = organization_id
+            rows = await uow.alert_rule.get_active_with_org()
+            for rule_row, _ in rows:
+                cached = AlertRuleCached(
+                    id=rule_row.id,
+                    sensor_id=rule_row.sensor_id,
+                    condition=rule_row.condition,
+                    threshold=rule_row.threshold,
+                    severity=rule_row.severity,
+                    name=rule_row.name,
+                )
+                rules_by_sensor[cached.sensor_id].append(cached)
 
         self._rules = dict(rules_by_sensor)
         self._sensor_org = sensor_org
         total = sum(len(v) for v in self._rules.values())
         logger.info(
-            "Rule cache loaded: {total} rules across {sensors} sensors",
+            "Rule cache loaded: {total} rules across {rule_sensors} rule-sensors ({mapped_sensors} mapped sensors)",
             total=total,
-            sensors=len(self._rules),
+            rule_sensors=len(self._rules),
+            mapped_sensors=len(self._sensor_org),
         )
 
     def get_rules(self, sensor_id: UUID) -> list[AlertRuleCached]:

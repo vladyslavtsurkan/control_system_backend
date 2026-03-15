@@ -10,6 +10,7 @@ from app.schemas.alert_rule import (
 from app.schemas.base import PaginatedResponse
 from app.schemas.user import UserResponse
 from app.services.mixins import TenantValidationMixin
+from app.uow.redis import RedisUnitOfWork
 from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 
@@ -30,8 +31,11 @@ class AlertRuleService(TenantValidationMixin):
             await self._validate_sensor_tenant(uow, request.sensor_id, tenant_id)
             data = request.model_dump()
             alert_rule = await uow.alert_rule.create(data)
+            created_alert_rule_id = alert_rule.id
             result = AlertRuleResponse.model_validate(alert_rule)
 
+        async with RedisUnitOfWork() as redis_uow:
+            await redis_uow.alert_state.clear_by_rule(created_alert_rule_id)
         async with RabbitMQUnitOfWork() as rmq:
             await rmq.control.publish_rule_invalidation()
         return result
@@ -46,27 +50,14 @@ class AlertRuleService(TenantValidationMixin):
     ) -> PaginatedResponse[AlertRuleResponse]:
         """Get alert rules, optionally filtered by sensor."""
         async with uow:
-            if sensor_id:
-                await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
-                filters = {"sensor_id": sensor_id}
-            else:
-                tenant_servers, _ = await uow.opc_server.get_multi(
-                    is_deleted=False, organization_id=tenant_id, limit=10000
-                )
-                server_ids = [s.id for s in tenant_servers]
-                if not server_ids:
-                    return PaginatedResponse(items=[], count=0, per_page=limit)
-                tenant_sensors, _ = await uow.sensor.get_multi(opc_server_id__in=server_ids, limit=10000)
-                sensor_ids = [s.id for s in tenant_sensors]
-                if not sensor_ids:
-                    return PaginatedResponse(items=[], count=0, per_page=limit)
-                filters = {"sensor_id__in": sensor_ids}
+            await self._validate_active_organization(uow, tenant_id)
 
-            alert_rules, count = await uow.alert_rule.get_multi(
+            alert_rules, count = await uow.alert_rule.get_multi_for_tenant(
+                tenant_id=tenant_id,
                 offset=offset,
                 limit=limit,
+                sensor_id=sensor_id,
                 order_by="-id",
-                **filters,
             )
             return PaginatedResponse(
                 items=[AlertRuleResponse.model_validate(r) for r in alert_rules],
@@ -82,10 +73,9 @@ class AlertRuleService(TenantValidationMixin):
     ) -> AlertRuleResponse:
         """Get a specific alert rule by ID."""
         async with uow:
-            alert_rule = await uow.alert_rule.get(filters={"id": alert_rule_id})
+            alert_rule = await uow.alert_rule.get_for_tenant_by_id(alert_rule_id=alert_rule_id, tenant_id=tenant_id)
             if not alert_rule:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
-            await self._validate_sensor_tenant(uow, alert_rule.sensor_id, tenant_id)
             return AlertRuleResponse.model_validate(alert_rule)
 
     async def update_alert_rule(
@@ -100,10 +90,9 @@ class AlertRuleService(TenantValidationMixin):
         async with uow:
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
 
-            alert_rule = await uow.alert_rule.get(filters={"id": alert_rule_id})
+            alert_rule = await uow.alert_rule.get_for_tenant_by_id(alert_rule_id=alert_rule_id, tenant_id=tenant_id)
             if not alert_rule:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
-            await self._validate_sensor_tenant(uow, alert_rule.sensor_id, tenant_id)
 
             updates = request.model_dump(exclude_unset=True)
             updated = await uow.alert_rule.update(
@@ -112,6 +101,8 @@ class AlertRuleService(TenantValidationMixin):
             )
             result = AlertRuleResponse.model_validate(updated)
 
+        async with RedisUnitOfWork() as redis_uow:
+            await redis_uow.alert_state.clear_by_rule(alert_rule_id)
         async with RabbitMQUnitOfWork() as rmq:
             await rmq.control.publish_rule_invalidation()
         return result
@@ -127,11 +118,12 @@ class AlertRuleService(TenantValidationMixin):
         async with uow:
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
 
-            alert_rule = await uow.alert_rule.get(filters={"id": alert_rule_id})
+            alert_rule = await uow.alert_rule.get_for_tenant_by_id(alert_rule_id=alert_rule_id, tenant_id=tenant_id)
             if not alert_rule:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
-            await self._validate_sensor_tenant(uow, alert_rule.sensor_id, tenant_id)
             await uow.alert_rule.delete(filters={"id": alert_rule_id})
 
+        async with RedisUnitOfWork() as redis_uow:
+            await redis_uow.alert_state.clear_by_rule(alert_rule_id)
         async with RabbitMQUnitOfWork() as rmq:
             await rmq.control.publish_rule_invalidation()

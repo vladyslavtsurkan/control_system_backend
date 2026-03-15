@@ -35,6 +35,7 @@ from app.schemas.sensor import (
     SensorCreateRequest,
     SensorUpdateRequest,
     SensorResponse,
+    SensorWithReadingsResponse,
 )
 from app.schemas.reading import (
     ReadingResponse,
@@ -48,6 +49,7 @@ from app.schemas.alert_rule import (
     AlertRuleBase,
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
+    AlertRuleBriefResponse,
     AlertRuleResponse,
 )
 from app.schemas.collector import (
@@ -99,6 +101,7 @@ __all__ = [
     "SensorCreateRequest",
     "SensorUpdateRequest",
     "SensorResponse",
+    "SensorWithReadingsResponse",
     # Reading & Alert
     "ReadingResponse",
     "AlertResponse",
@@ -106,6 +109,7 @@ __all__ = [
     "AlertRuleBase",
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
+    "AlertRuleBriefResponse",
     "AlertRuleResponse",
     "SingleValueThreshold",
     "RangeThreshold",

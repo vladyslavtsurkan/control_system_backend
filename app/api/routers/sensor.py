@@ -8,6 +8,7 @@ from app.api.dependencies import (
     current_user,
     offset_query,
     limit_query_default,
+    prefetch_window_minutes_query,
     sensor_service,
 )
 from app.schemas.base import PaginatedResponse
@@ -15,6 +16,7 @@ from app.schemas.sensor import (
     SensorCreateRequest,
     SensorUpdateRequest,
     SensorResponse,
+    SensorWithReadingsResponse,
 )
 
 __all__ = ["router"]
@@ -38,7 +40,7 @@ async def create_sensor(
     return await service.create_sensor(uow=uow, tenant_id=tenant_id, current_user=user, request=request)
 
 
-@router.get("/", response_model=PaginatedResponse[SensorResponse], status_code=status.HTTP_200_OK)
+@router.get("/", response_model=PaginatedResponse[SensorWithReadingsResponse], status_code=status.HTTP_200_OK)
 async def get_sensors(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
@@ -46,6 +48,8 @@ async def get_sensors(
     opc_server_id: UUID | None = Query(None, description="Filter by OPC server ID"),
     offset: int = offset_query,
     limit: int = limit_query_default,
+    prefetch_readings: bool = Query(False, description="Include recent readings for each sensor"),
+    prefetch_window_minutes: int = prefetch_window_minutes_query,
 ):
     """
     Get all sensors for the current tenant.
@@ -54,7 +58,13 @@ async def get_sensors(
     Optionally filter by OPC server ID.
     """
     return await service.get_sensors(
-        uow=uow, tenant_id=tenant_id, opc_server_id=opc_server_id, offset=offset, limit=limit
+        uow=uow,
+        tenant_id=tenant_id,
+        opc_server_id=opc_server_id,
+        offset=offset,
+        limit=limit,
+        prefetch_readings=prefetch_readings,
+        prefetch_window_minutes=prefetch_window_minutes,
     )
 
 

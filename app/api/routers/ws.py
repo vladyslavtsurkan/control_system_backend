@@ -33,7 +33,7 @@ async def issue_ws_ticket(
     return await service.issue_ticket(user, tenant_id)
 
 
-@router.websocket("/stream")
+@router.websocket("")
 async def ws_stream(
     websocket: WebSocket,
     manager: ConnectionManagerDep,
@@ -41,7 +41,7 @@ async def ws_stream(
 ) -> None:
     """Real-time telemetry & alert stream for a single tenant.
 
-    Connect: ``ws://host/ws/stream?ticket=<hex>``
+    Connect: ``ws://host/ws?ticket=<hex>``
 
     Obtain a ticket first via ``POST /ws/ticket`` (authenticated with Bearer token).
     Pushes :class:`~app.schemas.ws.WsBroadcastEvent` JSON frames whenever the
