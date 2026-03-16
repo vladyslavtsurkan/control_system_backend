@@ -3,7 +3,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.base import IdBase, CreatedAtBase
-from app.schemas.reading import ReadingResponse
+from app.schemas.reading import ReadingsBucketedResponse
 
 __all__ = [
     "SensorBase",
@@ -43,4 +43,4 @@ class SensorResponse(IdBase, CreatedAtBase):
 
 
 class SensorWithReadingsResponse(SensorResponse):
-    readings: list[ReadingResponse] | None = None
+    readings: ReadingsBucketedResponse | None = None

@@ -1,10 +1,14 @@
 import datetime
 from uuid import UUID
 
-from app.core.constants import PAGINATION_PER_PAGE, READINGS_DEFAULT_SAMPLE_EVERY
+from app.core.constants import (
+    PAGINATION_PER_PAGE,
+    READINGS_DEFAULT_BUCKET_INTERVAL,
+    READINGS_BUCKET_INTERVAL_TO_TIMEDELTA,
+)
 from app.core.exc import ObjectNotFoundException
-from app.schemas.base import PaginatedResponse, ItemsResponse
-from app.schemas.reading import ReadingResponse, AlertResponse
+from app.schemas.base import PaginatedResponse
+from app.schemas.reading import ReadingsBucketedResponse, AlertResponse
 from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 
@@ -12,6 +16,10 @@ __all__ = ["ReadingService", "AlertService"]
 
 
 class ReadingService(TenantValidationMixin):
+    @staticmethod
+    def _to_utc_iso_z(ts: datetime.datetime) -> str:
+        return ts.astimezone(datetime.UTC).isoformat().replace("+00:00", "Z")
+
     async def get_readings(
         self,
         uow: SQLUnitOfWork,
@@ -19,19 +27,24 @@ class ReadingService(TenantValidationMixin):
         sensor_id: UUID,
         start_time: datetime.datetime,
         end_time: datetime.datetime,
-        sample_every: int = READINGS_DEFAULT_SAMPLE_EVERY,
-    ) -> ItemsResponse[ReadingResponse]:
+        bucket_interval: str = READINGS_DEFAULT_BUCKET_INTERVAL,
+    ) -> ReadingsBucketedResponse:
         """Get readings for a sensor."""
         async with uow:
             await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
 
-            readings = await uow.reading.get_in_time_range(
+            bucket_interval_td = READINGS_BUCKET_INTERVAL_TO_TIMEDELTA[bucket_interval]
+
+            bucketed_readings = await uow.reading.get_in_time_range(
                 sensor_id=sensor_id,
                 start_time=start_time,
                 end_time=end_time,
-                sample_every=sample_every,
+                bucket_interval=bucket_interval_td,
             )
-            return ItemsResponse(items=[ReadingResponse.model_validate(r) for r in readings])
+
+            times = [self._to_utc_iso_z(row.time_bucket) for row in bucketed_readings]
+            values = [float(row.avg_value) for row in bucketed_readings]
+            return ReadingsBucketedResponse(times=times, values=values)
 
 
 class AlertService(TenantValidationMixin):

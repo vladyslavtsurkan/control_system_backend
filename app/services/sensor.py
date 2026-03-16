@@ -1,9 +1,10 @@
 import datetime
-from collections import defaultdict
 from uuid import UUID
 
 from app.core.constants import (
     PAGINATION_PER_PAGE,
+    READINGS_DEFAULT_BUCKET_INTERVAL,
+    READINGS_BUCKET_INTERVAL_TO_TIMEDELTA,
     SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
 )
 from app.core.exc import ObjectNotFoundException
@@ -14,7 +15,7 @@ from app.schemas.sensor import (
     SensorResponse,
     SensorWithReadingsResponse,
 )
-from app.schemas.reading import ReadingResponse
+from app.schemas.reading import ReadingsBucketedResponse
 from app.schemas.user import UserResponse
 from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
@@ -23,6 +24,10 @@ __all__ = ["SensorService"]
 
 
 class SensorService(TenantValidationMixin):
+    @staticmethod
+    def _to_utc_iso_z(ts: datetime.datetime) -> str:
+        return ts.astimezone(datetime.UTC).isoformat().replace("+00:00", "Z")
+
     async def create_sensor(
         self,
         uow: SQLUnitOfWork,
@@ -66,24 +71,42 @@ class SensorService(TenantValidationMixin):
                 opc_server_id=opc_server_id,
             )
 
-            sensor_readings: dict[UUID, list[ReadingResponse]] = defaultdict(list)
+            sensor_readings: dict[UUID, ReadingsBucketedResponse] = {}
             if prefetch_readings and sensors:
                 end_time = datetime.datetime.now(datetime.UTC)
                 start_time = end_time - datetime.timedelta(minutes=prefetch_window_minutes)
-                readings = await uow.reading.get_recent_for_sensors(
+                readings = await uow.reading.get_bucketed_for_sensors(
                     sensor_ids=[sensor.id for sensor in sensors],
                     start_time=start_time,
                     end_time=end_time,
+                    bucket_interval=READINGS_BUCKET_INTERVAL_TO_TIMEDELTA[READINGS_DEFAULT_BUCKET_INTERVAL],
                 )
+
+                grouped: dict[UUID, dict[str, list[str] | list[float]]] = {}
                 for reading in readings:
-                    sensor_readings[reading.sensor_id].append(ReadingResponse.model_validate(reading))
+                    if reading.sensor_id not in grouped:
+                        grouped[reading.sensor_id] = {"times": [], "values": []}
+                    grouped[reading.sensor_id]["times"].append(SensorService._to_utc_iso_z(reading.time_bucket))
+                    grouped[reading.sensor_id]["values"].append(float(reading.avg_value))
+
+                sensor_readings = {
+                    sensor_id: ReadingsBucketedResponse(times=data["times"], values=data["values"])
+                    for sensor_id, data in grouped.items()
+                }
 
             items: list[SensorWithReadingsResponse] = []
             for sensor in sensors:
                 base_payload = SensorResponse.model_validate(sensor)
                 payload = SensorWithReadingsResponse(**base_payload.model_dump())
                 if prefetch_readings:
-                    payload = payload.model_copy(update={"readings": sensor_readings.get(sensor.id, [])})
+                    payload = payload.model_copy(
+                        update={
+                            "readings": sensor_readings.get(
+                                sensor.id,
+                                ReadingsBucketedResponse(times=[], values=[]),
+                            )
+                        }
+                    )
                 items.append(payload)
 
             return PaginatedResponse(

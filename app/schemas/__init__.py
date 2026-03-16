@@ -39,6 +39,7 @@ from app.schemas.sensor import (
 )
 from app.schemas.reading import (
     ReadingResponse,
+    ReadingsBucketedResponse,
     AlertResponse,
 )
 from app.schemas.alert_rule import (
@@ -104,6 +105,7 @@ __all__ = [
     "SensorWithReadingsResponse",
     # Reading & Alert
     "ReadingResponse",
+    "ReadingsBucketedResponse",
     "AlertResponse",
     # Alert Rule
     "AlertRuleBase",

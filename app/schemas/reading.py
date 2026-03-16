@@ -9,6 +9,7 @@ from app.schemas.base import IdBase, CreatedAtBase
 
 __all__ = [
     "ReadingResponse",
+    "ReadingsBucketedResponse",
     "AlertResponse",
 ]
 
@@ -19,6 +20,11 @@ class ReadingResponse(BaseModel):
     time: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReadingsBucketedResponse(BaseModel):
+    times: list[str]
+    values: list[float]
 
 
 class AlertResponse(IdBase, CreatedAtBase):

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from argon2 import Type
 
 # Verification code settings
@@ -9,11 +11,38 @@ PAGINATION_MAX_PER_PAGE = 100
 PAGINATION_DEFAULT_OFFSET = 0
 
 # Readings general settings
-READINGS_MAX_HOURS_WINDOW = 25
+READINGS_MAX_HOURS_WINDOW = 24 * 7  # maximum allowed time range for readings queries (7 days)
 
 # Readings query defaults
 READINGS_DEFAULT_RANGE_HOURS = 24
 READINGS_DEFAULT_SAMPLE_EVERY = 1
+READINGS_DEFAULT_BUCKET_INTERVAL = "10 seconds"
+READINGS_ALLOWED_BUCKET_INTERVALS = (
+    "1 second",
+    "2 seconds",
+    "5 seconds",
+    "10 seconds",
+    "15 seconds",
+    "30 seconds",
+    "1 minute",
+    "5 minutes",
+    "15 minutes",
+    "30 minutes",
+    "1 hour",
+)
+READINGS_BUCKET_INTERVAL_TO_TIMEDELTA = {
+    "1 second": timedelta(seconds=1),
+    "2 seconds": timedelta(seconds=2),
+    "5 seconds": timedelta(seconds=5),
+    "10 seconds": timedelta(seconds=10),
+    "15 seconds": timedelta(seconds=15),
+    "30 seconds": timedelta(seconds=30),
+    "1 minute": timedelta(minutes=1),
+    "5 minutes": timedelta(minutes=5),
+    "15 minutes": timedelta(minutes=15),
+    "30 minutes": timedelta(minutes=30),
+    "1 hour": timedelta(hours=1),
+}
 
 # Sensor prefetch defaults
 SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES = 15

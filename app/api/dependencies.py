@@ -10,7 +10,8 @@ from app.core.constants import (
     PAGINATION_MAX_PER_PAGE,
     PAGINATION_DEFAULT_OFFSET,
     READINGS_DEFAULT_RANGE_HOURS,
-    READINGS_DEFAULT_SAMPLE_EVERY,
+    READINGS_DEFAULT_BUCKET_INTERVAL,
+    READINGS_ALLOWED_BUCKET_INTERVALS,
     SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
     SENSOR_PREFETCH_MAX_WINDOW_MINUTES,
     READINGS_MAX_HOURS_WINDOW,
@@ -47,7 +48,7 @@ __all__ = [
     "offset_query",
     "limit_query_default",
     "limit_query_factory",
-    "sample_every_query",
+    "bucket_interval_query",
     "prefetch_window_minutes_query",
     "get_readings_range",
     "get_tenant_id",
@@ -59,6 +60,7 @@ __all__ = [
     "ConnectionManagerDep",
     "ws_authenticate_dep",
     "ReadingsRangeDep",
+    "BucketIntervalDep",
 ]
 
 from app.utils.utils import ensure_utc
@@ -85,10 +87,12 @@ def limit_query_factory(max_limit: int = PAGINATION_MAX_PER_PAGE):
 
 offset_query = Query(PAGINATION_DEFAULT_OFFSET, ge=0, description="Number of items to skip")
 limit_query_default = limit_query_factory()
-sample_every_query = Query(
-    READINGS_DEFAULT_SAMPLE_EVERY,
-    ge=1,
-    description="Return every Nth reading (1 means all readings)",
+bucket_interval_query = Query(
+    READINGS_DEFAULT_BUCKET_INTERVAL,
+    pattern="^\\d+\\s+(second|seconds|minute|minutes|hour|hours)$",
+    description=(
+        f"Aggregation interval for time buckets. Allowed values: {', '.join(READINGS_ALLOWED_BUCKET_INTERVALS)}"
+    ),
 )
 prefetch_window_minutes_query = Query(
     SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
@@ -121,6 +125,17 @@ def get_readings_range(
         )
 
     return resolved_start, resolved_end
+
+
+def get_bucket_interval(
+    bucket_interval: str = bucket_interval_query,
+) -> str:
+    if bucket_interval not in READINGS_ALLOWED_BUCKET_INTERVALS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"bucket_interval must be one of: {', '.join(READINGS_ALLOWED_BUCKET_INTERVALS)}",
+        )
+    return bucket_interval
 
 
 async def get_tenant_id(
@@ -168,3 +183,4 @@ AdminUnitOfWorkDep = Annotated[SQLUnitOfWork, Depends(get_admin_uow)]
 ConnectionManagerDep = Annotated[ConnectionManager, Depends(get_connection_manager)]
 ws_authenticate_dep = Annotated[tuple[UserResponse, UUID], Depends(ws_authenticate)]
 ReadingsRangeDep = Annotated[tuple[datetime, datetime], Depends(get_readings_range)]
+BucketIntervalDep = Annotated[str, Depends(get_bucket_interval)]

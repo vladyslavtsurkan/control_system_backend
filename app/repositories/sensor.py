@@ -1,9 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, select, and_, func, desc, asc
+from sqlalchemy import Row, select, and_, func, desc, asc, cast, Float
+from sqlalchemy.dialects.postgresql import INTERVAL
 from sqlalchemy.orm import joinedload
 
 from app.models import Sensor, Reading, AlertRule, Alert, Organization
@@ -87,39 +88,27 @@ class ReadingRepository(BaseRepository[Reading]):
         sensor_id: UUID,
         start_time: datetime,
         end_time: datetime,
-        sample_every: int = 1,
-    ) -> Sequence[Reading]:
-        ranked = (
+        bucket_interval: timedelta = timedelta(minutes=5),
+    ) -> Sequence[Row[tuple[datetime, float]]]:
+        time_bucket = func.time_bucket(cast(bucket_interval, INTERVAL), Reading.time)
+        payload_value = cast(Reading.payload["value"].astext, Float)
+
+        stmt = (
             select(
-                Reading.time.label("time"),
-                Reading.sensor_id.label("sensor_id"),
-                func.row_number().over(order_by=Reading.time.desc()).label("row_num"),
+                time_bucket.label("time_bucket"),
+                func.avg(payload_value).label("avg_value"),
             )
             .where(
                 Reading.sensor_id == sensor_id,
                 Reading.time >= start_time,
                 Reading.time <= end_time,
             )
-            .subquery()
+            .group_by(time_bucket)
+            .order_by(time_bucket.asc())
         )
-
-        stmt = (
-            select(Reading)
-            .join(
-                ranked,
-                and_(
-                    Reading.time == ranked.c.time,
-                    Reading.sensor_id == ranked.c.sensor_id,
-                ),
-            )
-            .order_by(Reading.time.desc())
-        )
-
-        if sample_every > 1:
-            stmt = stmt.where((ranked.c.row_num - 1) % sample_every == 0)
 
         result = await self._session.execute(stmt)
-        return result.scalars().all()
+        return result.all()
 
     async def get_recent_for_sensors(
         self,
@@ -141,6 +130,37 @@ class ReadingRepository(BaseRepository[Reading]):
         )
         result = await self._session.execute(stmt)
         return result.scalars().all()
+
+    async def get_bucketed_for_sensors(
+        self,
+        sensor_ids: Sequence[UUID],
+        start_time: datetime,
+        end_time: datetime,
+        bucket_interval: timedelta = timedelta(minutes=5),
+    ) -> Sequence[Row[tuple[UUID, datetime, float]]]:
+        if not sensor_ids:
+            return []
+
+        time_bucket = func.time_bucket(cast(bucket_interval, INTERVAL), Reading.time)
+        payload_value = cast(Reading.payload["value"].astext, Float)
+
+        stmt = (
+            select(
+                Reading.sensor_id.label("sensor_id"),
+                time_bucket.label("time_bucket"),
+                func.avg(payload_value).label("avg_value"),
+            )
+            .where(
+                Reading.sensor_id.in_(sensor_ids),
+                Reading.time >= start_time,
+                Reading.time <= end_time,
+            )
+            .group_by(Reading.sensor_id, time_bucket)
+            .order_by(Reading.sensor_id.asc(), time_bucket.asc())
+        )
+
+        result = await self._session.execute(stmt)
+        return result.all()
 
 
 class AlertRuleRepository(BaseRepository[AlertRule]):
