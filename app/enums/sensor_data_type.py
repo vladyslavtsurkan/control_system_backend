@@ -1,5 +1,11 @@
 from app.enums.base import BaseStrEnum
 
+__all__ = ["SensorDataTypeEnum"]
 
-class SensorDataType(BaseStrEnum):
-    """Enum representing security policies for OPC servers"""
+
+class SensorDataTypeEnum(BaseStrEnum):
+    """Enum representing sensor telemetry value types."""
+
+    numeric = "numeric"
+    boolean = "boolean"
+    string = "string"

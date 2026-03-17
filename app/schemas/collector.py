@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.enums import AuthMethodEnum, SecurityPolicyEnum
+from app.enums import AuthMethodEnum, SecurityPolicyEnum, SensorDataTypeEnum
 
 __all__ = [
     "CollectorSensorResponse",
@@ -14,6 +14,7 @@ class CollectorSensorResponse(BaseModel):
     id: UUID
     name: str
     node_id: str
+    data_type: SensorDataTypeEnum
     units: str | None
 
     model_config = ConfigDict(from_attributes=True)

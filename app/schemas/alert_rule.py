@@ -1,7 +1,7 @@
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict, model_validator
+from pydantic import BaseModel, Field, ConfigDict, StrictBool, StrictFloat, StrictInt, StrictStr, model_validator
 
 from app.enums import AlertSeverityEnum, AlertConditionEnum
 from app.schemas.base import IdBase, CreatedAtBase
@@ -45,7 +45,7 @@ class SingleValueThreshold(BaseModel):
     """Threshold for single-value conditions (greater_than, less_than, equals, not_equals)."""
 
     type: Literal["single_value"] = "single_value"
-    value: float
+    value: StrictBool | StrictInt | StrictFloat | StrictStr
 
 
 class RangeThreshold(BaseModel):
@@ -87,6 +87,12 @@ def _validate_condition_threshold(
     expected = _CONDITION_TO_THRESHOLD_TYPE.get(condition)
     if expected and threshold.type != expected:
         raise ValueError(f"Condition `{condition.value}` requires threshold type `{expected}`, got `{threshold.type}`")
+
+    if condition in {AlertConditionEnum.greater_than, AlertConditionEnum.less_than} and isinstance(
+        threshold, SingleValueThreshold
+    ):
+        if isinstance(threshold.value, bool) or not isinstance(threshold.value, (int, float)):
+            raise ValueError(f"Condition `{condition.value}` requires numeric `threshold.value`")
 
 
 class AlertRuleBase(BaseModel):

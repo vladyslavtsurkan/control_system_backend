@@ -33,12 +33,12 @@ class TenantService:
             TenantAccessDeniedException: If user doesn't have access to the tenant.
         """
         if not x_tenant_id:
-            raise TenantIdRequiredException()
+            raise TenantIdRequiredException
 
         try:
             tenant_id = UUID(x_tenant_id)
         except ValueError:
-            raise InvalidTenantIdFormatException()
+            raise InvalidTenantIdFormatException
 
         # Validate user has access to this tenant
         async with SQLUnitOfWork() as uow:
@@ -47,7 +47,7 @@ class TenantService:
                 organization_id=tenant_id,
             )
             if not user_role:
-                raise TenantAccessDeniedException()
+                raise TenantAccessDeniedException
 
             if not is_active_org:
                 raise ObjectNotFoundException(str(tenant_id), "Organization")

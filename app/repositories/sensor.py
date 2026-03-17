@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Row, select, and_, func, desc, asc, cast, Float
+from sqlalchemy import Row, select, and_, func, desc, asc, cast
 from sqlalchemy.dialects.postgresql import INTERVAL
 from sqlalchemy.orm import joinedload
 
@@ -91,12 +91,11 @@ class ReadingRepository(BaseRepository[Reading]):
         bucket_interval: timedelta = timedelta(minutes=5),
     ) -> Sequence[Row[tuple[datetime, float]]]:
         time_bucket = func.time_bucket(cast(bucket_interval, INTERVAL), Reading.time)
-        payload_value = cast(Reading.payload["value"].astext, Float)
 
         stmt = (
             select(
                 time_bucket.label("time_bucket"),
-                func.avg(payload_value).label("avg_value"),
+                func.avg(Reading.val_num).label("avg_value"),
             )
             .where(
                 Reading.sensor_id == sensor_id,
@@ -142,13 +141,12 @@ class ReadingRepository(BaseRepository[Reading]):
             return []
 
         time_bucket = func.time_bucket(cast(bucket_interval, INTERVAL), Reading.time)
-        payload_value = cast(Reading.payload["value"].astext, Float)
 
         stmt = (
             select(
                 Reading.sensor_id.label("sensor_id"),
                 time_bucket.label("time_bucket"),
-                func.avg(payload_value).label("avg_value"),
+                func.avg(Reading.val_num).label("avg_value"),
             )
             .where(
                 Reading.sensor_id.in_(sensor_ids),

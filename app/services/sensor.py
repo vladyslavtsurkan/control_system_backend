@@ -84,6 +84,8 @@ class SensorService(TenantValidationMixin):
 
                 grouped: dict[UUID, ReadingsBucket] = {}
                 for reading in readings:
+                    if reading.avg_value is None:
+                        continue
                     if reading.sensor_id not in grouped:
                         grouped[reading.sensor_id] = {"times": [], "values": []}
                     bucket = grouped[reading.sensor_id]

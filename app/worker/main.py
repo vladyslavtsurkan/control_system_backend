@@ -87,10 +87,14 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
             for reading in batch:
+                scalar_value, val_num, val_bool, val_str = _extract_typed_values(reading.payload.value)
                 reading_dicts.append(
                     {
                         "time": reading.time,
                         "sensor_id": reading.sensor_id,
+                        "val_num": val_num,
+                        "val_bool": val_bool,
+                        "val_str": val_str,
                         "payload": reading.payload.model_dump(),
                     }
                 )
@@ -109,7 +113,7 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
                             alert_events.append(event)
                         continue
 
-                    is_violated = check_condition(rule.condition, reading.payload.value, rule.threshold)
+                    is_violated = check_condition(rule.condition, scalar_value, rule.threshold)
                     if is_violated:
                         event = await _handle_violation(
                             uow=uow,
@@ -118,6 +122,7 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
                             rule_id=rule.id,
                             rule_name=rule.name,
                             condition=rule.condition.value,
+                            value=scalar_value,
                             threshold=rule.threshold,
                             severity=rule.severity.value,
                         )
@@ -168,6 +173,16 @@ def _is_update_due(state: dict | None, now: datetime) -> bool:
     return (now - last_update_sent_at).total_seconds() >= ALERT_UPDATE_THROTTLE_SECONDS
 
 
+def _extract_typed_values(
+    value: bool | int | float | str,
+) -> tuple[bool | int | float | str, float | None, bool | None, str | None]:
+    if isinstance(value, bool):
+        return value, None, value, None
+    if isinstance(value, (int, float)):
+        return value, float(value), None, None
+    return value, None, None, value
+
+
 async def _handle_violation(
     uow: SQLUnitOfWork,
     redis_uow: RedisUnitOfWork,
@@ -175,13 +190,14 @@ async def _handle_violation(
     rule_id: UUID,
     rule_name: str,
     condition: str,
+    value: bool | int | float | str,
     threshold: dict,
     severity: str,
 ) -> dict | None:
     now = datetime.now(timezone.utc)
     state = await redis_uow.alert_state.get_state(reading.sensor_id, rule_id)
     active_alert = await uow.alert.get_active_by_sensor_rule(reading.sensor_id, rule_id)
-    message = f"Rule '{rule_name}': {condition} triggered (value={reading.payload.value}, threshold={threshold})"
+    message = f"Rule '{rule_name}': {condition} triggered (value={value}, threshold={threshold})"
 
     if active_alert is None:
         try:

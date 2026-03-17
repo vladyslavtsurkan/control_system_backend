@@ -42,8 +42,9 @@ class ReadingService(TenantValidationMixin):
                 bucket_interval=bucket_interval_td,
             )
 
-            times = [self._to_utc_iso_z(row.time_bucket) for row in bucketed_readings]
-            values = [float(row.avg_value) for row in bucketed_readings]
+            points = [(row.time_bucket, row.avg_value) for row in bucketed_readings if row.avg_value is not None]
+            times = [self._to_utc_iso_z(time_bucket) for time_bucket, _ in points]
+            values = [float(avg_value) for _, avg_value in points]
             return ReadingsBucketedResponse(times=times, values=values)
 
 
@@ -73,8 +74,8 @@ class AlertService(TenantValidationMixin):
                 per_page=limit,
             )
 
+    @staticmethod
     async def acknowledge_alert(
-        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         alert_id: UUID,
@@ -97,8 +98,8 @@ class AlertService(TenantValidationMixin):
                 raise ObjectNotFoundException(str(alert_id), "Alert")
             return AlertResponse.model_validate(updated)
 
+    @staticmethod
     async def resolve_alert(
-        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         alert_id: UUID,

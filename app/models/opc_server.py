@@ -2,11 +2,11 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, UUID, Enum, Index, Boolean, text
+from sqlalchemy import String, Text, ForeignKey, UUID, Enum, Index, Boolean, Float, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.enums import SecurityPolicyEnum, AuthMethodEnum, AlertSeverityEnum, AlertConditionEnum
+from app.enums import SecurityPolicyEnum, AuthMethodEnum, AlertSeverityEnum, AlertConditionEnum, SensorDataTypeEnum
 from app.models.base import Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin, SoftDeleteMixin, TenantMixin
 
 __all__ = ["OpcServer", "Sensor", "Reading", "AlertRule", "Alert", "CollectorApiKey"]
@@ -52,6 +52,9 @@ class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     node_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    data_type: Mapped[SensorDataTypeEnum] = mapped_column(
+        Enum(SensorDataTypeEnum), nullable=False, default=SensorDataTypeEnum.numeric
+    )
     units: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     opc_server = relationship("OpcServer", back_populates="sensors", lazy="subquery")
@@ -83,13 +86,15 @@ class Reading(Base):
     sensor_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, primary_key=True
     )
+    val_num: Mapped[float | None] = mapped_column(Float, nullable=True)
+    val_bool: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    val_str: Mapped[str | None] = mapped_column(Text, nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
     sensor = relationship("Sensor", back_populates="readings", lazy="subquery")
 
     __table_args__ = (
         Index("idx_readings_sensor_time_desc", "sensor_id", "time"),
-        Index("idx_readings_payload_gin", "payload", postgresql_using="gin"),
         {
             "timescaledb_hypertable": {"time_column_name": "time", "chunk_time_interval": "1 day"},
         },

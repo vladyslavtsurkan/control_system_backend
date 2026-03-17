@@ -1,7 +1,8 @@
 from uuid import UUID
 
 from app.core.constants import PAGINATION_PER_PAGE
-from app.core.exc import ObjectNotFoundException
+from app.core.exc import ObjectNotFoundException, BadRequestException
+from app.enums import AlertConditionEnum, SensorDataTypeEnum
 from app.schemas.alert_rule import (
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
@@ -18,6 +19,16 @@ __all__ = ["AlertRuleService"]
 
 
 class AlertRuleService(TenantValidationMixin):
+    @staticmethod
+    def _validate_condition_for_sensor_type(condition: AlertConditionEnum, data_type: SensorDataTypeEnum) -> None:
+        if condition == AlertConditionEnum.no_data:
+            return
+        if data_type == SensorDataTypeEnum.numeric:
+            return
+        if condition in {AlertConditionEnum.equals, AlertConditionEnum.not_equals}:
+            return
+        raise BadRequestException("Only equals, not_equals and no_data conditions are allowed for non-numeric sensors")
+
     async def create_alert_rule(
         self,
         uow: SQLUnitOfWork,
@@ -28,7 +39,10 @@ class AlertRuleService(TenantValidationMixin):
         """Create a new alert rule for a sensor. Only admin/owner."""
         async with uow:
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
-            await self._validate_sensor_tenant(uow, request.sensor_id, tenant_id)
+            sensor = await self._get_active_sensor_for_tenant(uow, request.sensor_id, tenant_id)
+            if not sensor:
+                raise ObjectNotFoundException(str(request.sensor_id), "Sensor")
+            self._validate_condition_for_sensor_type(request.condition, sensor.data_type)
             data = request.model_dump()
             alert_rule = await uow.alert_rule.create(data)
             created_alert_rule_id = alert_rule.id
@@ -94,7 +108,13 @@ class AlertRuleService(TenantValidationMixin):
             if not alert_rule:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
 
+            sensor = await self._get_active_sensor_for_tenant(uow, alert_rule.sensor_id, tenant_id)
+            if not sensor:
+                raise ObjectNotFoundException(str(alert_rule.sensor_id), "Sensor")
+
             updates = request.model_dump(exclude_unset=True)
+            new_condition = updates.get("condition", alert_rule.condition)
+            self._validate_condition_for_sensor_type(new_condition, sensor.data_type)
             updated = await uow.alert_rule.update(
                 filters={"id": alert_rule_id},
                 updates=updates,

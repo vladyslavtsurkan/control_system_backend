@@ -1,13 +1,13 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictBool, StrictFloat, StrictInt, StrictStr
 
 __all__ = ["TelemetryPayload", "TelemetryReading"]
 
 
 class TelemetryPayload(BaseModel):
-    value: float
+    value: StrictBool | StrictInt | StrictFloat | StrictStr
     status: str
 
 

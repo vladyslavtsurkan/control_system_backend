@@ -27,7 +27,7 @@ class WsAuthService:
             role = await uow.organization.get_user_role_in_organization(user.id, org_id)
 
         if role is None:
-            raise ForbiddenException()
+            raise ForbiddenException
 
         async with RedisUnitOfWork() as uow:
             ticket = await uow.ws_ticket.create(user.id, org_id)
