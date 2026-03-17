@@ -8,10 +8,10 @@ class AlertSeverityEnum(BaseStrEnum):
     Enum representing alert severity levels.
     """
 
-    info = "info"
-    warning = "warning"
-    critical = "critical"
-    fatal = "fatal"
+    INFO = "info"
+    WARNING = "warning"
+    CRITICAL = "critical"
+    FATAL = "fatal"
 
 
 class AlertConditionEnum(BaseStrEnum):
@@ -19,10 +19,10 @@ class AlertConditionEnum(BaseStrEnum):
     Enum representing alert condition types.
     """
 
-    greater_than = "greater_than"
-    less_than = "less_than"
-    equals = "equals"
-    not_equals = "not_equals"
-    outside_range = "outside_range"
-    inside_range = "inside_range"
-    no_data = "no_data"
+    GREATER_THAN = "greater_than"
+    LESS_THAN = "less_than"
+    EQUALS = "equals"
+    NOT_EQUALS = "not_equals"
+    OUTSIDE_RANGE = "outside_range"
+    INSIDE_RANGE = "inside_range"
+    NO_DATA = "no_data"

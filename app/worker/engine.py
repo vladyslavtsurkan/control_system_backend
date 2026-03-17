@@ -15,28 +15,28 @@ def check_condition(condition: AlertConditionEnum, value: bool | int | float | s
     """
     is_numeric = isinstance(value, (int, float)) and not isinstance(value, bool)
 
-    if condition == AlertConditionEnum.greater_than:
+    if condition == AlertConditionEnum.GREATER_THAN:
         if not is_numeric:
             return False
         return value > threshold["value"]
 
-    if condition == AlertConditionEnum.less_than:
+    if condition == AlertConditionEnum.LESS_THAN:
         if not is_numeric:
             return False
         return value < threshold["value"]
 
-    if condition == AlertConditionEnum.equals:
+    if condition == AlertConditionEnum.EQUALS:
         return value == threshold["value"]
 
-    if condition == AlertConditionEnum.not_equals:
+    if condition == AlertConditionEnum.NOT_EQUALS:
         return value != threshold["value"]
 
-    if condition == AlertConditionEnum.outside_range:
+    if condition == AlertConditionEnum.OUTSIDE_RANGE:
         if not is_numeric:
             return False
         return value < threshold["min"] or value > threshold["max"]
 
-    if condition == AlertConditionEnum.inside_range:
+    if condition == AlertConditionEnum.INSIDE_RANGE:
         if not is_numeric:
             return False
         return threshold["min"] <= value <= threshold["max"]
@@ -98,7 +98,7 @@ def evaluate_rules(
 
         rules = cache.get_rules(reading.sensor_id)
         for rule in rules:
-            if rule.condition == AlertConditionEnum.no_data:
+            if rule.condition == AlertConditionEnum.NO_DATA:
                 continue
 
             if check_condition(rule.condition, value, rule.threshold):

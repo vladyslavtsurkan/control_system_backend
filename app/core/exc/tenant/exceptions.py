@@ -11,19 +11,19 @@ __all__ = [
 class TenantIdRequiredException(BadRequestException):
     """Exception raised when X-Tenant-ID header is missing."""
 
-    def __init__(self, message: str = MessageException.tenant_id_required) -> None:
+    def __init__(self, message: str = MessageException.TENANT_ID_REQUIRED) -> None:
         super().__init__(message=message)
 
 
 class InvalidTenantIdFormatException(BadRequestException):
     """Exception raised when X-Tenant-ID header has invalid UUID format."""
 
-    def __init__(self, message: str = MessageException.invalid_tenant_id_format) -> None:
+    def __init__(self, message: str = MessageException.INVALID_TENANT_ID_FORMAT) -> None:
         super().__init__(message=message)
 
 
 class TenantAccessDeniedException(ForbiddenException):
     """Exception raised when user doesn't have access to the specified tenant."""
 
-    def __init__(self, message: str = MessageException.tenant_access_denied) -> None:
+    def __init__(self, message: str = MessageException.TENANT_ACCESS_DENIED) -> None:
         super().__init__(message=message)

@@ -100,7 +100,7 @@ class AuthService:
                     raise ForgotPasswordCodeFailedOrExpiredException(email)
 
                 if self._hash_manager.verify_hash(request.password, user.hashed_password):
-                    raise BadRequestException(MessageException.password_same_as_old)
+                    raise BadRequestException(MessageException.PASSWORD_SAME_AS_OLD)
 
                 await redis_uow.verification.delete_forgot_password_otp(email)
 

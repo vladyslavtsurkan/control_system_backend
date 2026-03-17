@@ -20,23 +20,23 @@ __all__ = [
 
 _SINGLE_VALUE_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.greater_than,
-        AlertConditionEnum.less_than,
-        AlertConditionEnum.equals,
-        AlertConditionEnum.not_equals,
+        AlertConditionEnum.GREATER_THAN,
+        AlertConditionEnum.LESS_THAN,
+        AlertConditionEnum.EQUALS,
+        AlertConditionEnum.NOT_EQUALS,
     }
 )
 
 _RANGE_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.outside_range,
-        AlertConditionEnum.inside_range,
+        AlertConditionEnum.OUTSIDE_RANGE,
+        AlertConditionEnum.INSIDE_RANGE,
     }
 )
 
 _NO_DATA_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.no_data,
+        AlertConditionEnum.NO_DATA,
     }
 )
 
@@ -88,7 +88,7 @@ def _validate_condition_threshold(
     if expected and threshold.type != expected:
         raise ValueError(f"Condition `{condition.value}` requires threshold type `{expected}`, got `{threshold.type}`")
 
-    if condition in {AlertConditionEnum.greater_than, AlertConditionEnum.less_than} and isinstance(
+    if condition in {AlertConditionEnum.GREATER_THAN, AlertConditionEnum.LESS_THAN} and isinstance(
         threshold, SingleValueThreshold
     ):
         if isinstance(threshold.value, bool) or not isinstance(threshold.value, (int, float)):
@@ -97,7 +97,7 @@ def _validate_condition_threshold(
 
 class AlertRuleBase(BaseModel):
     name: str = Field(..., max_length=255)
-    severity: AlertSeverityEnum = AlertSeverityEnum.warning
+    severity: AlertSeverityEnum = AlertSeverityEnum.WARNING
     condition: AlertConditionEnum
     threshold: Threshold = Field(
         ...,

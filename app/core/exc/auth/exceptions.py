@@ -30,34 +30,34 @@ class VerificationCodeAlreadySentException(ObjectAlreadyExistsException):
 class VerificationFailedOrExpiredException(ObjectNotFoundException):
     def __init__(self, email: str) -> None:
         super().__init__(id_=email, model_name="VerificationCode")
-        self.message = MessageException.verification_failed_or_expired
+        self.message = MessageException.VERIFICATION_FAILED_OR_EXPIRED
 
 
 class InvalidCredentialsException(NotAuthorizedException):
     def __init__(self) -> None:
-        super().__init__(MessageException.could_not_validate_credentials)
+        super().__init__(MessageException.COULD_NOT_VALIDATE_CREDENTIALS)
 
 
 class TokenRefreshException(ForbiddenException):
     def __init__(self) -> None:
-        super().__init__(MessageException.could_not_refresh_token)
+        super().__init__(MessageException.COULD_NOT_REFRESH_TOKEN)
 
 
 class UserDeactivatedException(ForbiddenException):
     def __init__(self, email: str) -> None:
-        super().__init__(MessageException.user_deactivated)
+        super().__init__(MessageException.USER_DEACTIVATED)
         self.alias = {"email": email}
 
 
 class UserNotFoundException(ObjectNotFoundException):
     def __init__(self, email: str) -> None:
         super().__init__(id_=email, model_name="User")
-        self.message = MessageException.user_not_found
+        self.message = MessageException.USER_NOT_FOUND
 
 
 class PasswordInvalidException(ForbiddenException):
     def __init__(self) -> None:
-        super().__init__(MessageException.password_invalid)
+        super().__init__(MessageException.PASSWORD_INVALID)
 
 
 class ForgotPasswordCodeAlreadySentException(ObjectAlreadyExistsException):
@@ -68,4 +68,4 @@ class ForgotPasswordCodeAlreadySentException(ObjectAlreadyExistsException):
 class ForgotPasswordCodeFailedOrExpiredException(ObjectNotFoundException):
     def __init__(self, email: str) -> None:
         super().__init__(id_=email, model_name="ForgotPasswordCode")
-        self.message = MessageException.forgot_password_code_failed_or_expired
+        self.message = MessageException.FORGOT_PASSWORD_CODE_FAILED_OR_EXPIRED

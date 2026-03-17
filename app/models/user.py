@@ -29,7 +29,7 @@ class UserOrganizationAssociation(Base):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True, nullable=False
     )
     role: Mapped[UserRoleInOrgEnum] = mapped_column(
-        Enum(UserRoleInOrgEnum), nullable=False, default=UserRoleInOrgEnum.member
+        Enum(UserRoleInOrgEnum), nullable=False, default=UserRoleInOrgEnum.MEMBER
     )
 
     __table_args__ = (Index("idx_org_users_reverse", "organization_id", "user_id"),)
