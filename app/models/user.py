@@ -4,7 +4,7 @@ from sqlalchemy import String, Boolean, ForeignKey, Enum, Index, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.enums import UserRoleInOrgEnum
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, UUIDMixin, TimestampMixin, enum_values
 
 __all__ = ["User", "UserOrganizationAssociation"]
 
@@ -29,7 +29,7 @@ class UserOrganizationAssociation(Base):
         UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True, nullable=False
     )
     role: Mapped[UserRoleInOrgEnum] = mapped_column(
-        Enum(UserRoleInOrgEnum), nullable=False, default=UserRoleInOrgEnum.MEMBER
+        Enum(UserRoleInOrgEnum, values_callable=enum_values), nullable=False, default=UserRoleInOrgEnum.member
     )
 
     __table_args__ = (Index("idx_org_users_reverse", "organization_id", "user_id"),)

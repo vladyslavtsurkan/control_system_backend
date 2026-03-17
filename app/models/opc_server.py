@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.enums import SecurityPolicyEnum, AuthMethodEnum, AlertSeverityEnum, AlertConditionEnum, SensorDataTypeEnum
-from app.models.base import Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin, SoftDeleteMixin, TenantMixin, enum_values
 
 __all__ = ["OpcServer", "Sensor", "Reading", "AlertRule", "Alert", "CollectorApiKey"]
 
@@ -20,10 +20,10 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
     url: Mapped[str] = mapped_column(String(512), nullable=False)
 
     security_policy: Mapped[SecurityPolicyEnum] = mapped_column(
-        Enum(SecurityPolicyEnum), nullable=False, default=SecurityPolicyEnum.NONE
+        Enum(SecurityPolicyEnum, values_callable=enum_values), nullable=False, default=SecurityPolicyEnum.none
     )
     authentication_method: Mapped[AuthMethodEnum] = mapped_column(
-        Enum(AuthMethodEnum), nullable=False, default=AuthMethodEnum.ANONYMOUS
+        Enum(AuthMethodEnum, values_callable=enum_values), nullable=False, default=AuthMethodEnum.anonymous
     )
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     encrypted_password: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -53,7 +53,7 @@ class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     node_id: Mapped[str] = mapped_column(String(255), nullable=False)
     data_type: Mapped[SensorDataTypeEnum] = mapped_column(
-        Enum(SensorDataTypeEnum), nullable=False, default=SensorDataTypeEnum.NUMERIC
+        Enum(SensorDataTypeEnum, values_callable=enum_values), nullable=False, default=SensorDataTypeEnum.numeric
     )
     units: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
@@ -109,9 +109,11 @@ class AlertRule(Base, UUIDMixin, CreatedAtMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[AlertSeverityEnum] = mapped_column(
-        Enum(AlertSeverityEnum), nullable=False, default=AlertSeverityEnum.WARNING
+        Enum(AlertSeverityEnum, values_callable=enum_values), nullable=False, default=AlertSeverityEnum.warning
     )
-    condition: Mapped[AlertConditionEnum] = mapped_column(Enum(AlertConditionEnum), nullable=False)
+    condition: Mapped[AlertConditionEnum] = mapped_column(
+        Enum(AlertConditionEnum, values_callable=enum_values), nullable=False
+    )
     threshold: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

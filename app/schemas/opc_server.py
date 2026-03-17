@@ -20,8 +20,8 @@ class OpcServerBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: str | None = None
     url: str = Field(..., max_length=512)
-    security_policy: SecurityPolicyEnum = SecurityPolicyEnum.NONE
-    authentication_method: AuthMethodEnum = AuthMethodEnum.ANONYMOUS
+    security_policy: SecurityPolicyEnum = SecurityPolicyEnum.none
+    authentication_method: AuthMethodEnum = AuthMethodEnum.anonymous
     username: str | None = Field(None, max_length=255)
     password: str | None = Field(None, max_length=255, exclude=True)
 

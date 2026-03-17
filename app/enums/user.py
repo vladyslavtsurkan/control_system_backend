@@ -8,6 +8,6 @@ class UserRoleInOrgEnum(BaseStrEnum):
     Enum representing user roles in an organization.
     """
 
-    OWNER = "owner"
-    ADMIN = "admin"
-    MEMBER = "member"
+    owner = "owner"
+    admin = "admin"
+    member = "member"

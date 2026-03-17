@@ -6,6 +6,6 @@ __all__ = ["SensorDataTypeEnum"]
 class SensorDataTypeEnum(BaseStrEnum):
     """Enum representing sensor telemetry value types."""
 
-    NUMERIC = "numeric"
-    BOOLEAN = "boolean"
-    STRING = "string"
+    numeric = "numeric"
+    boolean = "boolean"
+    string = "string"

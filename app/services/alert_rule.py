@@ -21,11 +21,11 @@ __all__ = ["AlertRuleService"]
 class AlertRuleService(TenantValidationMixin):
     @staticmethod
     def _validate_condition_for_sensor_type(condition: AlertConditionEnum, data_type: SensorDataTypeEnum) -> None:
-        if condition == AlertConditionEnum.NO_DATA:
+        if condition == AlertConditionEnum.no_data:
             return
-        if data_type == SensorDataTypeEnum.NUMERIC:
+        if data_type == SensorDataTypeEnum.numeric:
             return
-        if condition in {AlertConditionEnum.EQUALS, AlertConditionEnum.NOT_EQUALS}:
+        if condition in {AlertConditionEnum.equals, AlertConditionEnum.not_equals}:
             return
         raise BadRequestException("Only equals, not_equals and no_data conditions are allowed for non-numeric sensors")
 

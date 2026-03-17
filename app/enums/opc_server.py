@@ -8,8 +8,8 @@ class AuthMethodEnum(BaseStrEnum):
     Enum representing authentication methods for OPC servers.
     """
 
-    ANONYMOUS = "anonymous"
-    USERNAME = "username"
+    anonymous = "anonymous"
+    username = "username"
 
 
 class SecurityPolicyEnum(BaseStrEnum):
@@ -18,12 +18,12 @@ class SecurityPolicyEnum(BaseStrEnum):
     """
 
     # Recommended security policies
-    AES256_SHA256_RSAPSS = "Aes256_Sha256_RsaPss"
-    AES128_SHA256_RSAOAEP = "Aes128_Sha256_RsaOaep"
-    BASIC256_SHA256 = "Basic256Sha256"
+    aes256_sha256_rsapss = "Aes256_Sha256_RsaPss"
+    aes128_sha256_rsaoaep = "Aes128_Sha256_RsaOaep"
+    basic256_sha256 = "Basic256Sha256"
 
     # Without security encryption
-    NONE = "None"
+    none = "None"
     # Legacy security policies
-    BASIC256 = "Basic256"
-    BASIC128_RSA15 = "Basic128Rsa15"
+    basic256 = "Basic256"
+    basic128_rsa15 = "Basic128Rsa15"

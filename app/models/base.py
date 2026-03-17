@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum as PyEnum
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid7
@@ -15,7 +16,13 @@ __all__ = [
     "TimestampMixin",
     "SoftDeleteMixin",
     "TenantMixin",
+    "enum_values",
 ]
+
+
+def enum_values(enum_cls: type[PyEnum]) -> list[str]:
+    """Return enum values for SQLAlchemy Enum(values_callable=...)."""
+    return [str(member.value) for member in enum_cls]
 
 
 class CreatedAtMixin:

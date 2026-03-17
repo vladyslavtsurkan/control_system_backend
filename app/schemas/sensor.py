@@ -19,7 +19,7 @@ class SensorBase(BaseModel):
     name: str = Field(..., max_length=255)
     description: str | None = None
     node_id: str = Field(..., max_length=255)
-    data_type: SensorDataTypeEnum = SensorDataTypeEnum.NUMERIC
+    data_type: SensorDataTypeEnum = SensorDataTypeEnum.numeric
     units: str | None = Field(None, max_length=50)
 
 
