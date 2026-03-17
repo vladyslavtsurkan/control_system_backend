@@ -20,23 +20,23 @@ __all__ = [
 
 _SINGLE_VALUE_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.GREATER_THAN,
-        AlertConditionEnum.LESS_THAN,
-        AlertConditionEnum.EQUALS,
-        AlertConditionEnum.NOT_EQUALS,
+        AlertConditionEnum.greater_than,
+        AlertConditionEnum.less_than,
+        AlertConditionEnum.equals,
+        AlertConditionEnum.not_equals,
     }
 )
 
 _RANGE_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.OUTSIDE_RANGE,
-        AlertConditionEnum.INSIDE_RANGE,
+        AlertConditionEnum.outside_range,
+        AlertConditionEnum.inside_range,
     }
 )
 
 _NO_DATA_CONDITIONS: frozenset[AlertConditionEnum] = frozenset(
     {
-        AlertConditionEnum.NO_DATA,
+        AlertConditionEnum.no_data,
     }
 )
 
@@ -91,7 +91,7 @@ def _validate_condition_threshold(
 
 class AlertRuleBase(BaseModel):
     name: str = Field(..., max_length=255)
-    severity: AlertSeverityEnum = AlertSeverityEnum.WARNING
+    severity: AlertSeverityEnum = AlertSeverityEnum.warning
     condition: AlertConditionEnum
     threshold: Threshold = Field(
         ...,

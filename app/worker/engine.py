@@ -11,22 +11,22 @@ def check_condition(condition: AlertConditionEnum, value: float, threshold: dict
 
     Returns True when the condition is **violated** (i.e. an alert should fire).
     """
-    if condition == AlertConditionEnum.GREATER_THAN:
+    if condition == AlertConditionEnum.greater_than:
         return value > threshold["value"]
 
-    if condition == AlertConditionEnum.LESS_THAN:
+    if condition == AlertConditionEnum.less_than:
         return value < threshold["value"]
 
-    if condition == AlertConditionEnum.EQUALS:
+    if condition == AlertConditionEnum.equals:
         return value == threshold["value"]
 
-    if condition == AlertConditionEnum.NOT_EQUALS:
+    if condition == AlertConditionEnum.not_equals:
         return value != threshold["value"]
 
-    if condition == AlertConditionEnum.OUTSIDE_RANGE:
+    if condition == AlertConditionEnum.outside_range:
         return value < threshold["min"] or value > threshold["max"]
 
-    if condition == AlertConditionEnum.INSIDE_RANGE:
+    if condition == AlertConditionEnum.inside_range:
         return threshold["min"] <= value <= threshold["max"]
 
     # NO_DATA is handled by the background loop, not here.
@@ -72,7 +72,7 @@ def evaluate_rules(
 
         rules = cache.get_rules(reading.sensor_id)
         for rule in rules:
-            if rule.condition == AlertConditionEnum.NO_DATA:
+            if rule.condition == AlertConditionEnum.no_data:
                 continue
 
             if check_condition(rule.condition, reading.payload.value, rule.threshold):

@@ -77,7 +77,7 @@ class RuleCache:
     def get_all_no_data_rules(self) -> list[AlertRuleCached]:
         """Return every cached rule whose condition is NO_DATA."""
         return [
-            rule for rules in self._rules.values() for rule in rules if rule.condition == AlertConditionEnum.NO_DATA
+            rule for rules in self._rules.values() for rule in rules if rule.condition == AlertConditionEnum.no_data
         ]
 
     async def reload(self) -> None:

@@ -23,7 +23,7 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
         Enum(SecurityPolicyEnum), nullable=False, default=SecurityPolicyEnum.NONE
     )
     authentication_method: Mapped[AuthMethodEnum] = mapped_column(
-        Enum(AuthMethodEnum), nullable=False, default=AuthMethodEnum.ANONYMOUS
+        Enum(AuthMethodEnum), nullable=False, default=AuthMethodEnum.anonymous
     )
     username: Mapped[str | None] = mapped_column(String(255), nullable=True)
     encrypted_password: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -104,7 +104,7 @@ class AlertRule(Base, UUIDMixin, CreatedAtMixin):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[AlertSeverityEnum] = mapped_column(
-        Enum(AlertSeverityEnum), nullable=False, default=AlertSeverityEnum.WARNING
+        Enum(AlertSeverityEnum), nullable=False, default=AlertSeverityEnum.warning
     )
     condition: Mapped[AlertConditionEnum] = mapped_column(Enum(AlertConditionEnum), nullable=False)
     threshold: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

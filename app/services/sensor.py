@@ -15,7 +15,7 @@ from app.schemas.sensor import (
     SensorResponse,
     SensorWithReadingsResponse,
 )
-from app.schemas.reading import ReadingsBucketedResponse
+from app.schemas.reading import ReadingsBucket, ReadingsBucketedResponse
 from app.schemas.user import UserResponse
 from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
@@ -82,12 +82,13 @@ class SensorService(TenantValidationMixin):
                     bucket_interval=READINGS_BUCKET_INTERVAL_TO_TIMEDELTA[READINGS_DEFAULT_BUCKET_INTERVAL],
                 )
 
-                grouped: dict[UUID, dict[str, list[str] | list[float]]] = {}
+                grouped: dict[UUID, ReadingsBucket] = {}
                 for reading in readings:
                     if reading.sensor_id not in grouped:
                         grouped[reading.sensor_id] = {"times": [], "values": []}
-                    grouped[reading.sensor_id]["times"].append(SensorService._to_utc_iso_z(reading.time_bucket))
-                    grouped[reading.sensor_id]["values"].append(float(reading.avg_value))
+                    bucket = grouped[reading.sensor_id]
+                    bucket["times"].append(SensorService._to_utc_iso_z(reading.time_bucket))
+                    bucket["values"].append(float(reading.avg_value))
 
                 sensor_readings = {
                     sensor_id: ReadingsBucketedResponse(times=data["times"], values=data["values"])

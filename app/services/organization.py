@@ -29,7 +29,7 @@ from app.uow.sql import SQLUnitOfWork
 
 class OrganizationService:
     # Roles that have edit access (create, update, delete)
-    EDIT_ROLES = {UserRoleInOrgEnum.OWNER, UserRoleInOrgEnum.ADMIN}
+    EDIT_ROLES = {UserRoleInOrgEnum.owner, UserRoleInOrgEnum.admin}
 
     @staticmethod
     async def create_organization(
@@ -41,7 +41,7 @@ class OrganizationService:
             await uow.organization.add_user_to_organization(
                 user_id=current_user.id,
                 organization_id=organization.id,
-                role=UserRoleInOrgEnum.OWNER,
+                role=UserRoleInOrgEnum.owner,
             )
             logger.info(f"Organization created: {organization.name} by user: {current_user.email}")
             return OrganizationWithRoleResponse(
@@ -49,7 +49,7 @@ class OrganizationService:
                 name=organization.name,
                 description=organization.description,
                 created_at=organization.created_at,
-                role=UserRoleInOrgEnum.OWNER,
+                role=UserRoleInOrgEnum.owner,
             )
 
     @staticmethod
@@ -203,7 +203,7 @@ class OrganizationService:
                 raise ObjectAlreadyExistsException(id_=user_id, model_name="UserOrganizationAssociation")
 
             await uow.organization.add_user_to_organization(
-                user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.MEMBER
+                user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.member
             )
             logger.info(f"User {user_id} added to organization {organization_id} by {current_user.email}")
 
@@ -228,10 +228,10 @@ class OrganizationService:
             if target_role is None:
                 raise ObjectNotFoundException(id_=user_id, model_name="OrganizationMember")
 
-            if target_role == UserRoleInOrgEnum.OWNER:
+            if target_role == UserRoleInOrgEnum.owner:
                 raise CannotRemoveOwnerException
 
-            if caller_role == UserRoleInOrgEnum.ADMIN and target_role != UserRoleInOrgEnum.MEMBER:
+            if caller_role == UserRoleInOrgEnum.admin and target_role != UserRoleInOrgEnum.member:
                 raise AdminCanOnlyRemoveMembersException
 
             await uow.organization.remove_user_from_organization(user_id=user_id, organization_id=organization_id)
@@ -248,7 +248,7 @@ class OrganizationService:
             role = await self._check_membership(uow, current_user.id, organization_id)
             await self._check_org_exists(uow, organization_id)
 
-            if role == UserRoleInOrgEnum.OWNER:
+            if role == UserRoleInOrgEnum.owner:
                 raise OwnerCannotLeaveException()
 
             await uow.organization.remove_user_from_organization(
@@ -284,13 +284,13 @@ class OrganizationService:
             if target_role == request.role:
                 raise RoleAlreadyAssignedException
 
-            if request.role == UserRoleInOrgEnum.OWNER:
+            if request.role == UserRoleInOrgEnum.owner:
                 # Transfer ownership: promote target to OWNER and demote caller to ADMIN
                 await uow.organization.update_user_role(
-                    user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.OWNER
+                    user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.owner
                 )
                 await uow.organization.update_user_role(
-                    user_id=current_user.id, organization_id=organization_id, role=UserRoleInOrgEnum.ADMIN
+                    user_id=current_user.id, organization_id=organization_id, role=UserRoleInOrgEnum.admin
                 )
                 logger.info(
                     f"Ownership of organization {organization_id} transferred "
@@ -329,7 +329,7 @@ class OrganizationService:
         role = await uow.organization.get_user_role_in_organization(user_id=user_id, organization_id=organization_id)
         if role is None:
             raise OrganizationAccessDeniedException
-        roles_to_check = self.EDIT_ROLES if not is_full_access else {UserRoleInOrgEnum.OWNER}
+        roles_to_check = self.EDIT_ROLES if not is_full_access else {UserRoleInOrgEnum.owner}
         if role not in roles_to_check:
             raise OrganizationPermissionDeniedException
         return role

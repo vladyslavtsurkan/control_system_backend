@@ -97,7 +97,7 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
 
                 rules = rule_cache.get_rules(reading.sensor_id)
                 for rule in rules:
-                    if rule.condition == AlertConditionEnum.NO_DATA:
+                    if rule.condition == AlertConditionEnum.no_data:
                         event = await _handle_no_data_recovery(
                             uow,
                             redis_uow,

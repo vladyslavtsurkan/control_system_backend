@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -9,9 +9,15 @@ from app.schemas.base import IdBase, CreatedAtBase
 
 __all__ = [
     "ReadingResponse",
+    "ReadingsBucket",
     "ReadingsBucketedResponse",
     "AlertResponse",
 ]
+
+
+class ReadingsBucket(TypedDict):
+    times: list[str]
+    values: list[float]
 
 
 class ReadingResponse(BaseModel):

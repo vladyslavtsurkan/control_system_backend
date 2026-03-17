@@ -6,7 +6,7 @@ from app.uow.sql import SQLUnitOfWork
 
 __all__ = ["TenantValidationMixin"]
 
-EDIT_ROLES = {UserRoleInOrgEnum.OWNER, UserRoleInOrgEnum.ADMIN}
+EDIT_ROLES = {UserRoleInOrgEnum.owner, UserRoleInOrgEnum.admin}
 
 
 class TenantValidationMixin:
