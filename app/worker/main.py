@@ -86,7 +86,9 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
 
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
-            for reading in batch:
+            # Keep row-lock acquisition order stable across concurrent workers.
+            ordered_batch = sorted(batch, key=lambda r: (str(r.sensor_id), r.time))
+            for reading in ordered_batch:
                 scalar_value, val_num, val_bool, val_str = _extract_typed_values(reading.payload.value)
                 reading_dicts.append(
                     {
@@ -99,7 +101,7 @@ async def handle_telemetry(batch: list[TelemetryReading]) -> None:
                     }
                 )
 
-                rules = rule_cache.get_rules(reading.sensor_id)
+                rules = sorted(rule_cache.get_rules(reading.sensor_id), key=lambda r: str(r.id))
                 for rule in rules:
                     if rule.condition == AlertConditionEnum.no_data:
                         event = await _handle_no_data_recovery(
@@ -215,13 +217,16 @@ async def _handle_violation(
             active_alert = await uow.alert.get_active_by_sensor_rule(reading.sensor_id, rule_id)
             if active_alert is None:
                 raise
-            await uow.alert.update(
-                filters={"id": active_alert.id},
+            updated = await uow.alert.update_active_by_id(
+                alert_id=active_alert.id,
                 updates={
                     "message": message,
                     "triggered_value": reading.payload.model_dump(),
                 },
             )
+            if not updated:
+                await redis_uow.alert_state.clear(reading.sensor_id, rule_id)
+                return None
             emit_update = _is_update_due(state, now)
             await redis_uow.alert_state.set_open(
                 sensor_id=reading.sensor_id,
@@ -257,13 +262,16 @@ async def _handle_violation(
             "action": "open",
         }
 
-    await uow.alert.update(
-        filters={"id": active_alert.id},
+    updated = await uow.alert.update_active_by_id(
+        alert_id=active_alert.id,
         updates={
             "message": message,
             "triggered_value": reading.payload.model_dump(),
         },
     )
+    if not updated:
+        await redis_uow.alert_state.clear(reading.sensor_id, rule_id)
+        return None
 
     emit_update = _is_update_due(state, now)
     await redis_uow.alert_state.set_open(
@@ -300,7 +308,10 @@ async def _handle_recovery(
         return None
 
     now = datetime.now(timezone.utc)
-    await uow.alert.update(filters={"id": active_alert.id}, updates={"resolved_at": now})
+    resolved = await uow.alert.resolve_by_id_if_active(active_alert.id, now)
+    if not resolved:
+        await redis_uow.alert_state.clear(sensor_id, rule_id)
+        return None
     await redis_uow.alert_state.clear(sensor_id, rule_id)
 
     return {
@@ -338,7 +349,10 @@ async def _handle_no_data_recovery(
         return None
 
     now = datetime.now(timezone.utc)
-    await uow.alert.update(filters={"id": active_alert.id}, updates={"resolved_at": now})
+    resolved = await uow.alert.resolve_by_id_if_active(active_alert.id, now)
+    if not resolved:
+        await redis_uow.alert_state.clear(sensor_id, rule_id)
+        return None
     await redis_uow.alert_state.clear(sensor_id, rule_id)
     return {
         "sensor_id": sensor_id,
@@ -431,7 +445,7 @@ async def _no_data_loop() -> None:
     while True:
         await asyncio.sleep(interval)
         try:
-            no_data_rules = rule_cache.get_all_no_data_rules()
+            no_data_rules = sorted(rule_cache.get_all_no_data_rules(), key=lambda r: (str(r.sensor_id), str(r.id)))
             if not no_data_rules:
                 continue
 
@@ -496,10 +510,13 @@ async def _no_data_loop() -> None:
                             )
                             continue
 
-                        await uow.alert.update(
-                            filters={"id": active_alert.id},
+                        updated = await uow.alert.update_active_by_id(
+                            alert_id=active_alert.id,
                             updates={"message": message, "triggered_value": payload},
                         )
+                        if not updated:
+                            await redis_uow.alert_state.clear(rule.sensor_id, rule.id)
+                            continue
 
                         emit_update = _is_update_due(state, now)
                         await redis_uow.alert_state.set_open(

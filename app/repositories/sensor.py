@@ -341,8 +341,22 @@ class AlertRepository(BaseRepository[Alert]):
     async def get_active_by_sensor_rule(self, sensor_id: UUID, rule_id: UUID) -> Alert | None:
         return await self.get(
             filters={"sensor_id": sensor_id, "rule_id": rule_id, "resolved_at": None},
-            order_by="-created_at",
+            order_by="-id",
         )
+
+    async def update_active_by_id(self, alert_id: UUID, updates: dict[str, Any]) -> bool:
+        affected = await self.update_many(
+            filters={"id": alert_id, "resolved_at": None},
+            updates=updates,
+        )
+        return affected > 0
+
+    async def resolve_by_id_if_active(self, alert_id: UUID, resolved_at: datetime) -> bool:
+        affected = await self.update_many(
+            filters={"id": alert_id, "resolved_at": None},
+            updates={"resolved_at": resolved_at},
+        )
+        return affected > 0
 
     async def resolve_active_by_sensor_rule(self, sensor_id: UUID, rule_id: UUID, resolved_at) -> int:
         return await self.update_many(
