@@ -2,7 +2,7 @@ from typing import Any
 
 from app.enums import AlertConditionEnum
 from app.schemas.worker import TelemetryReading
-from app.worker.rule_cache import AlertRuleCached, RuleCache
+from app.worker.cache.rule_cache import AlertRuleCached, RuleCache
 
 __all__ = ["check_condition", "evaluate_rules"]
 

@@ -69,3 +69,7 @@ WS_TICKET_TTL = 30  # seconds — single-use ticket lifetime
 DEFAULT_NO_DATA_TIMEOUT_SECONDS = 300  # 5 minutes
 ALERT_UPDATE_THROTTLE_SECONDS = 120  # emit update events at most once per 2 minutes per rule
 ALERT_RESOLVE_CONSECUTIVE_OK_READINGS = 10  # for NO_DATA auto-resolve
+
+# Worker settings
+WORKER_MAX_DB_RETRIES = 3
+WORKER_RETRY_BASE_DELAY_SECONDS = 0.05

@@ -88,8 +88,8 @@ class BaseRepository(AbstractRepositoryMixin[T]):
             created_obj = result.scalars().first()
 
             return created_obj
-        except IntegrityError:
-            raise ObjectAlreadyExistsException(obj_in, self.model.__name__)
+        except IntegrityError as exc:
+            raise ObjectAlreadyExistsException(obj_in, self.model.__name__) from exc
 
     async def create_or_update(
         self, obj_in: dict[str, Any], conflict_columns: list[str], update_columns: list[str]

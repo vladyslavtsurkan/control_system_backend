@@ -12,8 +12,6 @@ __all__ = ["AlertRuleCached", "RuleCache", "rule_cache"]
 
 @dataclass(frozen=True, slots=True)
 class AlertRuleCached:
-    """Lightweight, immutable representation of an active alert rule."""
-
     id: UUID
     sensor_id: UUID
     condition: AlertConditionEnum
@@ -23,19 +21,11 @@ class AlertRuleCached:
 
 
 class RuleCache:
-    """In-memory cache of active alert rules, keyed by sensor_id.
-
-    Also maintains a ``sensor_id → organization_id`` mapping used by the
-    WebSocket broadcast publisher so it can route events to the correct
-    tenant without an extra DB round-trip per batch.
-    """
-
     def __init__(self) -> None:
         self._rules: dict[UUID, list[AlertRuleCached]] = {}
         self._sensor_org: dict[UUID, UUID] = {}
 
     async def load(self) -> None:
-        """Fetch all active alert rules from the DB and populate the cache."""
         rules_by_sensor: dict[UUID, list[AlertRuleCached]] = defaultdict(list)
         sensor_org: dict[UUID, UUID] = {}
 
@@ -67,21 +57,17 @@ class RuleCache:
         )
 
     def get_rules(self, sensor_id: UUID) -> list[AlertRuleCached]:
-        """Return cached rules for a sensor, or an empty list."""
         return self._rules.get(sensor_id, [])
 
     def get_org_id(self, sensor_id: UUID) -> UUID | None:
-        """Return the organization_id for a sensor, or None if not cached."""
         return self._sensor_org.get(sensor_id)
 
     def get_all_no_data_rules(self) -> list[AlertRuleCached]:
-        """Return every cached rule whose condition is NO_DATA."""
         return [
             rule for rules in self._rules.values() for rule in rules if rule.condition == AlertConditionEnum.no_data
         ]
 
     async def reload(self) -> None:
-        """Hot-reload the cache (called from the control-queue subscriber)."""
         logger.info("Rule cache reload triggered")
         await self.load()
 

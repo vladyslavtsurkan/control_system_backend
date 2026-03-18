@@ -8,7 +8,8 @@ class RedisConfig(BaseConfig):
     PORT: int = Field(..., alias="REDIS_PORT")
     PASSWORD: str | None = Field(None, alias="REDIS_PASSWORD")
     DB: int = Field(0, alias="REDIS_DB")
-    MAX_CONNECTIONS: int = Field(10, alias="REDIS_MAX_CONNECTIONS")
+    MAX_CONNECTIONS: int = Field(200, alias="REDIS_MAX_CONNECTIONS")
+    BLOCKING_TIMEOUT_SECONDS: float = Field(5.0, alias="REDIS_BLOCKING_TIMEOUT_SECONDS")
 
     @property
     def url(self) -> str:
