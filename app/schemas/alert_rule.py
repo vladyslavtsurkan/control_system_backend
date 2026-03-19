@@ -107,6 +107,7 @@ class AlertRuleBase(BaseModel):
             'conditions, or {"type": "no_data"} for no-data condition.'
         ),
     )
+    duration_seconds: int = Field(0, ge=0)
 
     @model_validator(mode="after")
     def _check_condition_threshold(self) -> Self:
@@ -123,6 +124,7 @@ class AlertRuleUpdateRequest(BaseModel):
     severity: AlertSeverityEnum | None = None
     condition: AlertConditionEnum | None = None
     threshold: Threshold | None = None
+    duration_seconds: int | None = Field(None, ge=0)
     is_active: bool | None = None
 
     @model_validator(mode="after")
@@ -137,6 +139,7 @@ class AlertRuleBriefResponse(IdBase, CreatedAtBase):
     name: str
     severity: AlertSeverityEnum
     condition: AlertConditionEnum
+    duration_seconds: int
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)
@@ -148,6 +151,7 @@ class AlertRuleResponse(IdBase, CreatedAtBase):
     severity: AlertSeverityEnum
     condition: AlertConditionEnum
     threshold: Threshold
+    duration_seconds: int
     is_active: bool
 
     model_config = ConfigDict(from_attributes=True)

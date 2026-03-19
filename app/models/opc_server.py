@@ -2,7 +2,7 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import String, Text, ForeignKey, UUID, Enum, Index, Boolean, Float, text
+from sqlalchemy import String, Text, ForeignKey, UUID, Enum, Index, Boolean, Float, Integer, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -115,6 +115,7 @@ class AlertRule(Base, UUIDMixin, CreatedAtMixin):
         Enum(AlertConditionEnum, values_callable=enum_values), nullable=False
     )
     threshold: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    duration_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     sensor = relationship("Sensor", back_populates="alert_rules", lazy="subquery")

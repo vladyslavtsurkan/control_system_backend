@@ -16,6 +16,7 @@ class AlertRuleCached:
     sensor_id: UUID
     condition: AlertConditionEnum
     threshold: dict
+    duration_seconds: int
     severity: AlertSeverityEnum
     name: str
 
@@ -41,6 +42,7 @@ class RuleCache:
                     sensor_id=rule_row.sensor_id,
                     condition=rule_row.condition,
                     threshold=rule_row.threshold,
+                    duration_seconds=rule_row.duration_seconds,
                     severity=rule_row.severity,
                     name=rule_row.name,
                 )

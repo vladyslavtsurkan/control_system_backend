@@ -8,6 +8,7 @@ from app.repositories.redis.base import BaseRedisRepository
 __all__ = ["AlertStateRepository"]
 
 ALERT_STATE_KEY = "alert_state:{sensor_id}:{rule_id}"
+ALERT_PENDING_KEY = "alert:pending:{rule_id}:{sensor_id}"
 
 
 class AlertStateRepository(BaseRedisRepository):
@@ -17,12 +18,9 @@ class AlertStateRepository(BaseRedisRepository):
     rebuilds state from subsequent telemetry messages.
     """
 
-    @staticmethod
-    def _key(sensor_id: UUID, rule_id: UUID) -> str:
-        return ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id)
-
     async def get_state(self, sensor_id: UUID, rule_id: UUID) -> dict | None:
-        state = await self.get(self._key(sensor_id, rule_id))
+        key = ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id)
+        state = await self.get(key)
         if state is None:
             return None
 
@@ -41,13 +39,14 @@ class AlertStateRepository(BaseRedisRepository):
         ok_streak: int = 0,
         last_update_sent_at: datetime | None = None,
     ) -> None:
+        key = ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id)
         payload = {
             "alert_id": str(alert_id),
             "status": "open",
             "ok_streak": str(ok_streak),
             "last_update_sent_at": last_update_sent_at.isoformat() if last_update_sent_at else "",
         }
-        await self.set(self._key(sensor_id, rule_id), payload)
+        await self.set(key, payload)
 
     async def bump_ok_streak(self, sensor_id: UUID, rule_id: UUID) -> int:
         state = await self.get_state(sensor_id, rule_id)
@@ -64,13 +63,38 @@ class AlertStateRepository(BaseRedisRepository):
         return ok_streak
 
     async def clear(self, sensor_id: UUID, rule_id: UUID) -> None:
-        await self.delete(self._key(sensor_id, rule_id))
+        key = ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id)
+        await self.delete(key)
+
+    async def get_pending(self, sensor_id: UUID, rule_id: UUID) -> float | None:
+        key = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id)
+        value = await self.get_raw(key)
+        if value is None:
+            return None
+
+        try:
+            return float(value)
+        except TypeError, ValueError:
+            await self.clear_pending(sensor_id, rule_id)
+            return None
+
+    async def set_pending(self, sensor_id: UUID, rule_id: UUID, first_spike_ts: float, ttl_seconds: int) -> None:
+        key = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id)
+        await self.set_raw(key, str(first_spike_ts), ttl_seconds=ttl_seconds)
+
+    async def clear_pending(self, sensor_id: UUID, rule_id: UUID) -> None:
+        key = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id)
+        await self.delete(key)
 
     async def clear_by_rule(self, rule_id: UUID) -> None:
         pattern = ALERT_STATE_KEY.format(sensor_id="*", rule_id=rule_id)
-        async for key in self.redis.scan_iter(match=pattern):
-            key_str = key.decode() if isinstance(key, bytes) else key
-            await self.delete(key_str)
+        await self.delete_by_pattern(pattern)
+
+        await self.clear_pending_by_rule(rule_id)
+
+    async def clear_pending_by_rule(self, rule_id: UUID) -> None:
+        pattern = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id="*")
+        await self.delete_by_pattern(pattern)
 
     @staticmethod
     def _parse_ts(value: str | None) -> datetime | None:

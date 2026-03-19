@@ -31,3 +31,17 @@ class BaseRedisRepository(AbstractRedisRepository):
 
     async def exists(self, key: str) -> bool:
         return await self._redis.exists(key) > 0
+
+    async def set_raw(self, key: str, value: str, ttl_seconds: int | None = None) -> None:
+        await self._redis.set(key, value, ex=ttl_seconds)
+
+    async def get_raw(self, key: str) -> str | None:
+        value = await self._redis.get(key)
+        if value is None:
+            return None
+        return value.decode() if isinstance(value, bytes) else str(value)
+
+    async def delete_by_pattern(self, pattern: str) -> None:
+        async for key in self._redis.scan_iter(match=pattern):
+            key_str = key.decode() if isinstance(key, bytes) else key
+            await self.delete(key_str)
