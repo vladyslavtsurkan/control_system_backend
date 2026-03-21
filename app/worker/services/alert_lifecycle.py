@@ -94,8 +94,8 @@ async def handle_violation(
     severity: str,
 ) -> AlertEvent | None:
     now = datetime.now(timezone.utc)
-    sensor_id = reading.sensor_id
-    triggered_value = reading.payload.model_dump()
+    sensor_id = reading["sensor_id"]
+    triggered_value = dict(reading["payload"])
     state = await redis_uow.alert_state.get_state(sensor_id, rule_id)
     active_alert = await uow.alert.get_active_by_sensor_rule(sensor_id, rule_id)
     message = f"Rule '{rule_name}': {condition} triggered (value={value}, threshold={threshold})"
