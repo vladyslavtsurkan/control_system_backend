@@ -28,7 +28,8 @@ def convert_protobuf_to_telemetry(batch: bytes) -> list[TelemetryReading] | None
         elif val_type == "str_val":
             actual_value = reading.payload.str_val
         else:
-            return None
+            logger.warning("Unknown value type: {value}", value=reading.payload.value)
+            continue
 
         # Convert the timestamp from milliseconds to a datetime object
         reading_time = datetime.fromtimestamp(reading.time / 1000.0, tz=timezone.utc)

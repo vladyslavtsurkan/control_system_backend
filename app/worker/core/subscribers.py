@@ -18,6 +18,9 @@ def register_subscribers(
     @broker.subscriber(telemetry_queue, telemetry_exchange)
     async def handle_telemetry(msg: bytes) -> None:
         batch = convert_protobuf_to_telemetry(msg)
+        if not batch:
+            logger.error("Failed to convert Protobuf batch, skipping processing")
+            return
 
         reading_count, alert_count = await process_telemetry_batch(batch)
         logger.debug(
