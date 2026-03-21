@@ -3,7 +3,7 @@ from itertools import groupby
 from uuid import UUID
 
 from app.enums import AlertConditionEnum
-from app.schemas.worker import TelemetryReading
+from app.worker.schemas.telemetry import TelemetryReading
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 from app.worker.cache.rule_cache import rule_cache
@@ -103,26 +103,25 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
             # Sort the whole batch by sensor_id + time
-            ordered_batch = sorted(batch, key=lambda r: (str(r.sensor_id), r.time))
+            ordered_batch = sorted(batch, key=lambda r: (str(r["sensor_id"]), r["time"]))
 
             # Group batch by sensor_id
-            for sensor_id_str, group in groupby(ordered_batch, key=lambda r: str(r.sensor_id)):
+            for sensor_id_str, group in groupby(ordered_batch, key=lambda r: str(r["sensor_id"])):
                 sensor_readings = list(group)
-                sensor_id = sensor_readings[0].sensor_id
+                sensor_id = sensor_readings[0]["sensor_id"]
 
                 # 3. Prepare data for insert to DB
                 for reading in sensor_readings:
-                    scalar_value, val_num, val_bool, val_str = extract_typed_values(reading.payload.value)
-                    reading_rows.append(
-                        {
-                            "time": reading.time,
-                            "sensor_id": reading.sensor_id,
-                            "val_num": val_num,
-                            "val_bool": val_bool,
-                            "val_str": val_str,
-                            "payload": reading.payload.model_dump(),
-                        }
-                    )
+                    scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
+                    row: ReadingWrite = {
+                        "time": reading["time"],
+                        "sensor_id": reading["sensor_id"],
+                        "val_num": val_num,
+                        "val_bool": val_bool,
+                        "val_str": val_str,
+                        "payload": dict(reading["payload"]),
+                    }
+                    reading_rows.append(row)
 
                 # Get rule from cache
                 rules = sorted(rule_cache.get_rules(sensor_id), key=lambda r: str(r.id))
@@ -142,7 +141,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                         continue
 
                     for reading in sensor_readings:
-                        scalar_value, _, _, _ = extract_typed_values(reading.payload.value)
+                        scalar_value, _, _, _ = extract_typed_values(reading["payload"]["value"])
 
                         is_violated, should_trigger = await evaluate_rule_with_debounce(
                             redis_uow=redis_uow,
@@ -152,7 +151,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                             threshold=rule.threshold,
                             duration_seconds=rule.duration_seconds,
                             current_value=scalar_value,
-                            timestamp=reading.time,
+                            timestamp=reading["time"],
                         )
 
                         if should_trigger:

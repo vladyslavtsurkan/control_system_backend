@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.constants import ALERT_RESOLVE_CONSECUTIVE_OK_READINGS
 from app.core.exc import ObjectAlreadyExistsException
-from app.schemas.worker import TelemetryReading
+from app.worker.schemas.telemetry import TelemetryReading
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 from app.worker.common.helpers import is_active_alert_unique_violation, is_update_due, parse_ts

@@ -58,10 +58,6 @@ from app.schemas.collector import (
     CollectorSensorResponse,
     CollectorConfigResponse,
 )
-from app.schemas.worker import (
-    TelemetryPayload,
-    TelemetryReading,
-)
 
 __all__ = [
     # Base
@@ -122,7 +118,4 @@ __all__ = [
     # Collector
     "CollectorSensorResponse",
     "CollectorConfigResponse",
-    # Worker
-    "TelemetryPayload",
-    "TelemetryReading",
 ]

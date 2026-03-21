@@ -1,8 +1,10 @@
+from uuid import UUID
+
 from loguru import logger
 from datetime import datetime, timezone
 
-from app.generated import telemetry_pb2
-from app.schemas import TelemetryReading, TelemetryPayload
+from app.worker.generated import telemetry_pb2
+from app.worker.schemas import TelemetryReading
 
 
 def convert_protobuf_to_telemetry(batch: bytes) -> list[TelemetryReading] | None:
@@ -36,11 +38,14 @@ def convert_protobuf_to_telemetry(batch: bytes) -> list[TelemetryReading] | None
 
         # Collect the reading into the list of TelemetryReading objects
         readings.append(
-            TelemetryReading(
-                sensor_id=reading.sensor_id,
-                time=reading_time,
-                payload=TelemetryPayload(status=reading.payload.status, value=actual_value),
-            )
+            {
+                "sensor_id": UUID(reading.sensor_id),
+                "time": reading_time,
+                "payload": {
+                    "value": actual_value,
+                    "status": reading.payload.status,
+                },
+            }
         )
 
     return readings
