@@ -6,6 +6,7 @@ from .helpers import (
     parse_ts,
     postgres_sqlstate,
 )
+from .convert_protobuf import convert_protobuf_to_telemetry
 
 __all__ = [
     "extract_typed_values",
@@ -14,4 +15,5 @@ __all__ = [
     "is_update_due",
     "parse_ts",
     "postgres_sqlstate",
+    "convert_protobuf_to_telemetry",
 ]

@@ -1,10 +1,9 @@
 from faststream.rabbit import RabbitBroker, RabbitExchange, RabbitQueue
 from loguru import logger
 
-from app.schemas.worker import TelemetryReading
-
 from app.worker.cache.rule_cache import rule_cache
 from app.worker.services.telemetry import process_telemetry_batch
+from app.worker.common import convert_protobuf_to_telemetry
 
 __all__ = ["register_subscribers"]
 
@@ -17,7 +16,9 @@ def register_subscribers(
     control_exchange: RabbitExchange,
 ) -> None:
     @broker.subscriber(telemetry_queue, telemetry_exchange)
-    async def handle_telemetry(batch: list[TelemetryReading]) -> None:
+    async def handle_telemetry(msg: bytes) -> None:
+        batch = convert_protobuf_to_telemetry(msg)
+
         reading_count, alert_count = await process_telemetry_batch(batch)
         logger.debug(
             "Batch processed: {readings} readings, {alerts} alerts",
