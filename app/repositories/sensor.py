@@ -79,6 +79,19 @@ class SensorRepository(BaseRepository[Sensor]):
         result = await self._session.execute(stmt)
         return result.all()
 
+    async def get_orgs_by_ids(self, sensor_ids: set[UUID]) -> dict[UUID, UUID]:
+        """Return mapping of sensor_id to organization_id for given sensor_ids."""
+        if not sensor_ids:
+            return {}
+
+        stmt = (
+            select(Sensor.id, OpcServer.organization_id)
+            .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
+            .where(Sensor.id.in_(sensor_ids))
+        )
+        result = await self._session.execute(stmt)
+        return {row[0]: row[1] for row in result.all()}
+
 
 class ReadingRepository(BaseRepository[Reading]):
     model = Reading

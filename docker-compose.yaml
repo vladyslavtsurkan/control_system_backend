@@ -73,11 +73,22 @@ services:
   rabbitmq:
     image: rabbitmq:4.2.4-management
     container_name: rabbitmq_control_system
+    command: sh -c "rabbitmq-plugins enable rabbitmq_auth_mechanism_ssl && rabbitmq-server"
     networks:
       - control-system-network
     ports:
       - "${RABBITMQ_PORT}:${RABBITMQ_PORT}"
+      - "${RABBITMQ_EXTERNAL_PORT}:${RABBITMQ_EXTERNAL_PORT}"
       - "${RABBITMQ_MANAGEMENT_PORT}:${RABBITMQ_MANAGEMENT_PORT}"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./infra/rabbitmq/certs:/etc/rabbitmq/certs:ro
+      - ./infra/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
     env_file:
       - .env
 

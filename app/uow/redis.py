@@ -4,6 +4,7 @@ from app.infra.redis import redis_client
 from app.repositories.redis.alert_state import AlertStateRepository
 from app.repositories.redis.verification import VerificationRepository
 from app.repositories.redis.ws_ticket import WsTicketRepository
+from app.repositories.redis.sensor_org import SensorOrgRepository
 from app.uow.base import ABCUnitOfWork
 
 
@@ -17,6 +18,7 @@ class RedisUnitOfWork(ABCUnitOfWork):
         self.verification = VerificationRepository(redis=self.redis)
         self.ws_ticket = WsTicketRepository(redis=self.redis)
         self.alert_state = AlertStateRepository(redis=self.redis)
+        self.sensor_org = SensorOrgRepository(redis=self.redis)
         return self
 
     async def __aexit__(self, exc_type: any, exc: any, tb: any) -> None:

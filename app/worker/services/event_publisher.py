@@ -6,7 +6,7 @@ from loguru import logger
 from app.infra.celery.tasks import send_alert_notification
 from app.schemas.ws import WsBroadcastEvent
 from app.uow.rabbitmq import RabbitMQUnitOfWork
-from app.worker.cache.rule_cache import rule_cache
+from app.worker.services.rule_cache import rule_cache_service
 from app.worker.schemas.events import AlertEvent, ReadingWrite
 
 __all__ = ["dispatch_alert_notifications", "publish_batch_events"]
@@ -26,7 +26,7 @@ async def publish_batch_events(
 
     for reading in reading_rows:
         sensor_id = reading["sensor_id"]
-        org_id = rule_cache.get_org_id(sensor_id)
+        org_id = rule_cache_service.get_org_id(sensor_id)
         if org_id is None:
             missing_sensor_ids.add(sensor_id)
             continue
@@ -41,7 +41,7 @@ async def publish_batch_events(
 
     for alert in alert_events:
         sensor_id = alert["sensor_id"]
-        org_id = rule_cache.get_org_id(sensor_id)
+        org_id = rule_cache_service.get_org_id(sensor_id)
         if org_id is None:
             missing_sensor_ids.add(sensor_id)
             continue

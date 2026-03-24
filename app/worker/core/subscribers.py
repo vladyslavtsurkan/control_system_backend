@@ -1,9 +1,7 @@
-from faststream.rabbit import RabbitBroker, RabbitExchange, RabbitQueue
-from loguru import logger
+from faststream import Depends
+from faststream.rabbit import RabbitBroker, RabbitExchange, RabbitQueue, RabbitMessage
 
-from app.worker.cache.rule_cache import rule_cache
-from app.worker.services.telemetry import process_telemetry_batch
-from app.worker.common import convert_protobuf_to_telemetry
+from app.worker.services import TelemetrySubscriberService
 
 __all__ = ["register_subscribers"]
 
@@ -16,20 +14,12 @@ def register_subscribers(
     control_exchange: RabbitExchange,
 ) -> None:
     @broker.subscriber(telemetry_queue, telemetry_exchange)
-    async def handle_telemetry(msg: bytes) -> None:
-        batch = convert_protobuf_to_telemetry(msg)
-        if not batch:
-            logger.error("Failed to convert Protobuf batch, skipping processing")
-            return
-
-        reading_count, alert_count = await process_telemetry_batch(batch)
-        logger.debug(
-            "Batch processed: {readings} readings, {alerts} alerts",
-            readings=reading_count,
-            alerts=alert_count,
-        )
+    async def handle_telemetry(
+        message: RabbitMessage,
+        telemetry_service: Depends(TelemetrySubscriberService),
+    ) -> None:
+        await telemetry_service.handle_telemetry_message(message)
 
     @broker.subscriber(control_queue, control_exchange)
-    async def handle_control(msg: str) -> None:
-        logger.info("Control message received: {msg}", msg=msg)
-        await rule_cache.reload()
+    async def handle_control(msg: str, telemetry_service: Depends(TelemetrySubscriberService)) -> None:
+        await telemetry_service.handle_control_message(msg)

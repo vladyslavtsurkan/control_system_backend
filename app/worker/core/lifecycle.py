@@ -2,7 +2,7 @@ import asyncio
 
 from loguru import logger
 
-from app.worker.cache.rule_cache import rule_cache
+from app.worker.services.rule_cache import rule_cache_service
 from app.worker.services.no_data_loop import run_no_data_loop
 
 __all__ = ["WorkerLifecycle"]
@@ -14,7 +14,7 @@ class WorkerLifecycle:
 
     async def on_startup(self) -> None:
         logger.info("Worker starting - loading rule cache ...")
-        await rule_cache.load()
+        await rule_cache_service.load()
 
         self._no_data_task = asyncio.create_task(run_no_data_loop())
         logger.info("NO_DATA background checker started")

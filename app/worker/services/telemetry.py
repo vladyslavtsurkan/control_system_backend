@@ -6,7 +6,7 @@ from app.enums import AlertConditionEnum
 from app.worker.schemas.telemetry import TelemetryReading
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
-from app.worker.cache.rule_cache import rule_cache
+from app.worker.services.rule_cache import rule_cache_service
 from app.worker.common.helpers import extract_typed_values
 from app.worker.core.retry import run_with_db_retries
 from app.worker.engine import check_condition
@@ -124,7 +124,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     reading_rows.append(row)
 
                 # Get rule from cache
-                rules = sorted(rule_cache.get_rules(sensor_id), key=lambda r: str(r.id))
+                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: str(r.id))
 
                 for rule in rules:
                     if rule.condition == AlertConditionEnum.no_data:

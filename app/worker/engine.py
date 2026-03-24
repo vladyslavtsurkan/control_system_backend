@@ -2,7 +2,7 @@ from typing import Any
 
 from app.enums import AlertConditionEnum
 from app.worker.schemas.telemetry import TelemetryReading
-from app.worker.cache.rule_cache import AlertRuleCached, RuleCache
+from app.worker.services.rule_cache import AlertRuleCached, RuleCacheService
 
 __all__ = ["check_condition", "evaluate_rules"]
 
@@ -61,7 +61,7 @@ def _build_alert_dict(reading: TelemetryReading, rule: AlertRuleCached) -> dict:
 
 def evaluate_rules(
     readings: list[TelemetryReading],
-    cache: RuleCache,
+    cache: RuleCacheService,
 ) -> tuple[list[dict], list[dict]]:
     """
     Evaluate every reading against the in-memory rule cache.

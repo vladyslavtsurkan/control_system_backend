@@ -7,7 +7,7 @@ from loguru import logger
 from app.enums import AlertConditionEnum, AlertSeverityEnum
 from app.uow.sql import SQLUnitOfWork
 
-__all__ = ["AlertRuleCached", "RuleCache", "rule_cache"]
+__all__ = ["AlertRuleCached", "RuleCacheService", "rule_cache_service"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,7 +21,7 @@ class AlertRuleCached:
     name: str
 
 
-class RuleCache:
+class RuleCacheService:
     def __init__(self) -> None:
         self._rules: dict[UUID, list[AlertRuleCached]] = {}
         self._sensor_org: dict[UUID, UUID] = {}
@@ -74,4 +74,4 @@ class RuleCache:
         await self.load()
 
 
-rule_cache = RuleCache()
+rule_cache_service = RuleCacheService()

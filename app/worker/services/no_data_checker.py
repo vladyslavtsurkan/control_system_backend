@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from app.core.constants import DEFAULT_NO_DATA_TIMEOUT_SECONDS
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
-from app.worker.cache.rule_cache import rule_cache
+from app.worker.services.rule_cache import rule_cache_service
 from app.worker.core.retry import run_with_db_retries
 from app.worker.schemas.events import AlertEvent
 from app.worker.services.alert_lifecycle import handle_no_data_violation
@@ -23,7 +23,7 @@ async def run_no_data_check() -> int:
 
 
 async def _run_no_data_check_once() -> list[AlertEvent]:
-    no_data_rules = sorted(rule_cache.get_all_no_data_rules(), key=lambda r: (str(r.sensor_id), str(r.id)))
+    no_data_rules = sorted(rule_cache_service.get_all_no_data_rules(), key=lambda r: (str(r.sensor_id), str(r.id)))
     if not no_data_rules:
         return []
 
