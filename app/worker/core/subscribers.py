@@ -16,10 +16,10 @@ def register_subscribers(
     @broker.subscriber(telemetry_queue, telemetry_exchange)
     async def handle_telemetry(
         message: RabbitMessage,
-        telemetry_service: Depends(TelemetrySubscriberService),
+        telemetry_service=Depends(TelemetrySubscriberService),
     ) -> None:
         await telemetry_service.handle_telemetry_message(message)
 
     @broker.subscriber(control_queue, control_exchange)
-    async def handle_control(msg: str, telemetry_service: Depends(TelemetrySubscriberService)) -> None:
+    async def handle_control(msg: str, telemetry_service=Depends(TelemetrySubscriberService)) -> None:
         await telemetry_service.handle_control_message(msg)
