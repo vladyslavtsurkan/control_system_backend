@@ -21,7 +21,7 @@ class TelemetrySubscriberService:
         await rule_cache_service.reload()
 
     async def handle_telemetry_message(self, message: RabbitMessage) -> None:
-        org_uuid = self._extract_org_uuid_from_routing_key(message.raw_message.routing_key)
+        org_uuid = self._extract_org_uuid_from_message_user_id(message.raw_message.user_id)
         if org_uuid is None:
             return
 
@@ -52,16 +52,14 @@ class TelemetrySubscriberService:
         )
 
     @staticmethod
-    def _extract_org_uuid_from_routing_key(routing_key: str) -> UUID | None:
-        routing_key_parts = routing_key.split(".")
-        if len(routing_key_parts) < 2:
-            logger.error("Invalid routing key format: {routing_key}", routing_key=routing_key)
-            return None
-
+    def _extract_org_uuid_from_message_user_id(user_id: str) -> UUID | None:
         try:
-            return UUID(routing_key_parts[1])
+            return UUID(user_id)
         except ValueError:
-            logger.error("Spoofed or invalid UUID in routing key: {org_uuid}", org_uuid=routing_key_parts[1])
+            logger.warning(
+                "Received telemetry message with invalid user_id format: {user_id}",
+                user_id=user_id,
+            )
             return None
 
     @staticmethod
