@@ -89,10 +89,10 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
             # Sort the whole batch by sensor_id + time
-            ordered_batch = sorted(batch, key=lambda r: (str(r["sensor_id"]), r["time"]))
+            ordered_batch = sorted(batch, key=lambda r: (r["sensor_id"], r["time"]))
 
             # Group batch by sensor_id
-            for sensor_id_str, group in groupby(ordered_batch, key=lambda r: str(r["sensor_id"])):
+            for sensor_id_str, group in groupby(ordered_batch, key=lambda r: r["sensor_id"]):
                 sensor_readings = list(group)
                 sensor_id = sensor_readings[0]["sensor_id"]
 
@@ -110,7 +110,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     reading_rows.append(row)
 
                 # Get rule from cache
-                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: str(r.id))
+                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: r.id)
 
                 for rule in rules:
                     if rule.condition == AlertConditionEnum.no_data:
