@@ -23,8 +23,7 @@ def _to_unix_ts(value: datetime) -> float:
     return value.timestamp()
 
 
-async def evaluate_rule_with_debounce(
-    redis_uow: RedisUnitOfWork,
+def evaluate_rule_with_debounce(
     sensor_id: UUID,
     rule_id: UUID,
     condition: AlertConditionEnum,
@@ -32,58 +31,45 @@ async def evaluate_rule_with_debounce(
     duration_seconds: int,
     current_value: bool | int | float | str,
     timestamp: datetime,
-) -> tuple[bool, bool]:
+    active_state: dict | None,
+    pending_ts: float | None,
+) -> tuple[bool, bool, float | None, bool]:
     """Evaluate rule violation and debounce state.
 
-    Returns ``(is_violated, should_trigger_alert_now)``.
+    Returns ``(is_violated, should_trigger_alert_now, next_pending_ts, pending_state_mutated)``.
 
     Debounce state machine:
     - normal reading -> clear pending timer
     - first violating reading -> set pending first-spike timestamp
     - subsequent violating readings -> trigger only when elapsed >= duration
     """
+    # Keep signature aligned with call sites keyed by sensor+rule.
+    _ = (sensor_id, rule_id)
+
     is_violated = check_condition(condition, current_value, threshold)
     if not is_violated:
-        await redis_uow.alert_state.clear_pending(sensor_id=sensor_id, rule_id=rule_id)
-        return False, False
+        return False, False, None, pending_ts is not None
 
-    active_state = await redis_uow.alert_state.get_state(sensor_id=sensor_id, rule_id=rule_id)
     if active_state is not None and active_state.get("status") == "open":
-        await redis_uow.alert_state.clear_pending(sensor_id=sensor_id, rule_id=rule_id)
-        return True, True
+        return True, True, None, pending_ts is not None
 
     duration = max(0, int(duration_seconds))
     if duration == 0:
-        return True, True
+        return True, True, None, pending_ts is not None
 
     current_ts = _to_unix_ts(timestamp)
-    first_spike_ts = await redis_uow.alert_state.get_pending(sensor_id=sensor_id, rule_id=rule_id)
+    if pending_ts is None:
+        return True, False, current_ts, True
 
-    if first_spike_ts is None:
-        await redis_uow.alert_state.set_pending(
-            sensor_id=sensor_id,
-            rule_id=rule_id,
-            first_spike_ts=current_ts,
-            ttl_seconds=duration + 60,
-        )
-        return True, False
-
-    elapsed_time = current_ts - first_spike_ts
+    elapsed_time = current_ts - pending_ts
     if elapsed_time < 0:
         # Out-of-order telemetry should reset the baseline instead of instant-firing.
-        await redis_uow.alert_state.set_pending(
-            sensor_id=sensor_id,
-            rule_id=rule_id,
-            first_spike_ts=current_ts,
-            ttl_seconds=duration + 60,
-        )
-        return True, False
+        return True, False, current_ts, pending_ts != current_ts
 
     if elapsed_time >= duration:
-        await redis_uow.alert_state.clear_pending(sensor_id=sensor_id, rule_id=rule_id)
-        return True, True
+        return True, True, None, True
 
-    return True, False
+    return True, False, pending_ts, False
 
 
 async def process_telemetry_batch(batch: list[TelemetryReading]) -> tuple[int, int]:
@@ -140,11 +126,14 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 alert_events.append(event)
                         continue
 
+                    active_state = await redis_uow.alert_state.get_state(sensor_id=sensor_id, rule_id=rule.id)
+                    pending_ts = await redis_uow.alert_state.get_pending(sensor_id=sensor_id, rule_id=rule.id)
+                    pending_mutated = False
+
                     for reading in sensor_readings:
                         scalar_value, _, _, _ = extract_typed_values(reading["payload"]["value"])
 
-                        is_violated, should_trigger = await evaluate_rule_with_debounce(
-                            redis_uow=redis_uow,
+                        is_violated, should_trigger, pending_ts, pending_state_mutated = evaluate_rule_with_debounce(
                             sensor_id=sensor_id,
                             rule_id=rule.id,
                             condition=rule.condition,
@@ -152,7 +141,10 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                             duration_seconds=rule.duration_seconds,
                             current_value=scalar_value,
                             timestamp=reading["time"],
+                            active_state=active_state,
+                            pending_ts=pending_ts,
                         )
+                        pending_mutated = pending_mutated or pending_state_mutated
 
                         if should_trigger:
                             event = await handle_violation(
@@ -166,6 +158,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 threshold=rule.threshold,
                                 severity=rule.severity.value,
                             )
+                            active_state = {"status": "open"}
                         elif not is_violated:
                             event = await handle_recovery(
                                 uow=uow,
@@ -174,11 +167,23 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 rule_id=rule.id,
                                 severity=rule.severity.value,
                             )
+                            active_state = None
                         else:
                             event = None
 
                         if event is not None:
                             alert_events.append(event)
+
+                    if pending_mutated:
+                        if pending_ts is None:
+                            await redis_uow.alert_state.clear_pending(sensor_id=sensor_id, rule_id=rule.id)
+                        else:
+                            await redis_uow.alert_state.set_pending(
+                                sensor_id=sensor_id,
+                                rule_id=rule.id,
+                                first_spike_ts=pending_ts,
+                                ttl_seconds=max(0, int(rule.duration_seconds)) + 60,
+                            )
 
             if reading_rows:
                 await uow.reading.create_many(reading_rows)
