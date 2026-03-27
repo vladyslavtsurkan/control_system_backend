@@ -1,18 +1,19 @@
 ARG PYTHON_VERSION=3.14.3
-FROM python:${PYTHON_VERSION}-slim as base
+FROM python:${PYTHON_VERSION}-slim AS base
 
 RUN apt-get update && apt-get install -y postgresql-client netcat-openbsd
 
 WORKDIR /app
 
-ENV PYTHONPATH .
+ENV PYTHONPATH=.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 
-RUN pip install poetry
+RUN pip install --no-cache-dir uv
 
-COPY poetry.lock pyproject.toml ./
+COPY pyproject.toml uv.lock ./
 
-RUN poetry config virtualenvs.create false \
-    && poetry install --only main || echo "Poetry install failed"
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
 
