@@ -95,6 +95,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
             for sensor_id_str, group in groupby(ordered_batch, key=lambda r: r["sensor_id"]):
                 sensor_readings = list(group)
                 sensor_id = sensor_readings[0]["sensor_id"]
+                organization_id = rule_cache_service.get_org_id(sensor_id)
 
                 # 3. Prepare data for insert to DB
                 for reading in sensor_readings:
@@ -121,6 +122,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 sensor_id=sensor_id,
                                 rule_id=rule.id,
                                 severity=rule.severity.value,
+                                organization_id=organization_id,
                             )
                             if event is not None:
                                 alert_events.append(event)
@@ -157,6 +159,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 value=scalar_value,
                                 threshold=rule.threshold,
                                 severity=rule.severity.value,
+                                organization_id=organization_id,
                             )
                             active_state = {"status": "open"}
                         elif not is_violated:
@@ -166,6 +169,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                                 sensor_id=sensor_id,
                                 rule_id=rule.id,
                                 severity=rule.severity.value,
+                                organization_id=organization_id,
                             )
                             active_state = None
                         else:

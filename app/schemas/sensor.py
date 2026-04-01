@@ -10,6 +10,7 @@ __all__ = [
     "SensorBase",
     "SensorCreateRequest",
     "SensorUpdateRequest",
+    "SensorControlRequest",
     "SensorResponse",
     "SensorWithReadingsResponse",
 ]
@@ -21,6 +22,7 @@ class SensorBase(BaseModel):
     node_id: str = Field(..., max_length=255)
     data_type: SensorDataTypeEnum = SensorDataTypeEnum.numeric
     units: str | None = Field(None, max_length=50)
+    is_writable: bool = False
 
 
 class SensorCreateRequest(SensorBase):
@@ -33,6 +35,11 @@ class SensorUpdateRequest(BaseModel):
     node_id: str | None = Field(None, max_length=255)
     data_type: SensorDataTypeEnum | None = None
     units: str | None = Field(None, max_length=50)
+    is_writable: bool | None = None
+
+
+class SensorControlRequest(BaseModel):
+    value: bool | int | float | str = Field(..., description="The new setpoint value for the sensor")
 
 
 class SensorResponse(IdBase, CreatedAtBase):
@@ -42,6 +49,7 @@ class SensorResponse(IdBase, CreatedAtBase):
     node_id: str
     data_type: SensorDataTypeEnum
     units: str | None
+    is_writable: bool
 
     model_config = ConfigDict(from_attributes=True)
 

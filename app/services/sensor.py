@@ -1,5 +1,6 @@
 import datetime
-from uuid import UUID
+import time
+from uuid import UUID, uuid4
 
 from app.core.constants import (
     PAGINATION_PER_PAGE,
@@ -12,13 +13,16 @@ from app.schemas.base import PaginatedResponse
 from app.schemas.sensor import (
     SensorCreateRequest,
     SensorUpdateRequest,
+    SensorControlRequest,
     SensorResponse,
     SensorWithReadingsResponse,
 )
 from app.schemas.reading import ReadingsBucket, ReadingsBucketedResponse
 from app.schemas.user import UserResponse
 from app.services.mixins import TenantValidationMixin
+from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.uow.sql import SQLUnitOfWork
+from app.worker.generated import telemetry_pb2
 
 __all__ = ["SensorService"]
 
@@ -171,3 +175,46 @@ class SensorService(TenantValidationMixin):
             )
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
+
+    async def send_control_command(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        sensor_id: UUID,
+        command_req: SensorControlRequest,
+        current_user: UserResponse,
+    ) -> dict[str, str]:
+        """Send a tenant-scoped control command to the edge for a sensor."""
+        async with uow:
+            await self._validate_active_organization(uow, tenant_id)
+
+            sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
+            if not sensor:
+                raise ObjectNotFoundException(str(sensor_id), "Sensor")
+
+            # Tenant identity comes from X-Tenant-ID; users can belong to multiple orgs.
+            sensor_for_tenant = await self._get_active_sensor_for_tenant(uow, sensor_id=sensor_id, tenant_id=tenant_id)
+            if not sensor_for_tenant:
+                raise ObjectNotFoundException(str(sensor_id), "Sensor")
+
+        command_id = uuid4()
+        cmd = telemetry_pb2.ControlCommand(  # type: ignore[attr-defined]
+            command_id=str(command_id),
+            sensor_id=str(sensor_id),
+            timestamp=int(time.time()),
+        )
+
+        value = command_req.value
+        if isinstance(value, bool):
+            cmd.bool_val = value
+        elif isinstance(value, int):
+            cmd.int_val = value
+        elif isinstance(value, float):
+            cmd.float_val = value
+        else:
+            cmd.str_val = value
+
+        async with RabbitMQUnitOfWork() as rmq:
+            await rmq.control.publish_command(organization_id=tenant_id, payload=cmd.SerializeToString())
+
+        return {"status": "Command dispatched", "command_id": str(command_id)}

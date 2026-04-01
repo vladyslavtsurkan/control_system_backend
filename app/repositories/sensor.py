@@ -5,13 +5,13 @@ from uuid import UUID
 
 from sqlalchemy import Row, select, and_, func, desc, asc, cast
 from sqlalchemy.dialects.postgresql import INTERVAL
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
-from app.models import Sensor, Reading, AlertRule, Alert, Organization
+from app.models import Sensor, Reading, AlertRule, Alert, AlertAction, Organization
 from app.models.opc_server import OpcServer
 from app.repositories.base import BaseRepository
 
-__all__ = ["SensorRepository", "ReadingRepository", "AlertRuleRepository", "AlertRepository"]
+__all__ = ["SensorRepository", "ReadingRepository", "AlertRuleRepository", "AlertActionRepository", "AlertRepository"]
 
 
 class SensorRepository(BaseRepository[Sensor]):
@@ -180,6 +180,7 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
     async def get_for_tenant_by_id(self, alert_rule_id: UUID, tenant_id: UUID) -> AlertRule | None:
         stmt = (
             select(AlertRule)
+            .options(selectinload(AlertRule.actions))
             .join(Sensor, AlertRule.sensor_id == Sensor.id)
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
@@ -203,6 +204,7 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
     ) -> tuple[Sequence[AlertRule], int]:
         stmt = (
             select(AlertRule, func.count().over().label("total_count"))
+            .options(selectinload(AlertRule.actions))
             .join(Sensor, AlertRule.sensor_id == Sensor.id)
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
@@ -249,6 +251,10 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
         )
         result = await self._session.execute(stmt)
         return result.all()
+
+
+class AlertActionRepository(BaseRepository[AlertAction]):
+    model = AlertAction
 
 
 class AlertRepository(BaseRepository[Alert]):

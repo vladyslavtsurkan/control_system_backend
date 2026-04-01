@@ -4,6 +4,7 @@ from app.core.constants import PAGINATION_PER_PAGE
 from app.core.exc import ObjectNotFoundException, BadRequestException
 from app.enums import AlertConditionEnum, SensorDataTypeEnum
 from app.schemas.alert_rule import (
+    AlertActionCreateRequest,
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
     AlertRuleResponse,
@@ -29,6 +30,26 @@ class AlertRuleService(TenantValidationMixin):
             return
         raise BadRequestException("Only equals, not_equals and no_data conditions are allowed for non-numeric sensors")
 
+    async def _build_alert_action_rows(
+        self,
+        uow: SQLUnitOfWork,
+        tenant_id: UUID,
+        action_requests: list[AlertActionCreateRequest],
+    ) -> list[dict[str, object]]:
+        rows: list[dict[str, object]] = []
+        for action in action_requests:
+            target_sensor = await self._get_active_sensor_for_tenant(
+                uow=uow,
+                sensor_id=action.target_sensor_id,
+                tenant_id=tenant_id,
+            )
+            if not target_sensor:
+                raise ObjectNotFoundException(str(action.target_sensor_id), "Sensor")
+            if not target_sensor.is_writable:
+                raise BadRequestException("Target sensor is not writable")
+            rows.append(action.model_dump())
+        return rows
+
     async def create_alert_rule(
         self,
         uow: SQLUnitOfWork,
@@ -43,10 +64,16 @@ class AlertRuleService(TenantValidationMixin):
             if not sensor:
                 raise ObjectNotFoundException(str(request.sensor_id), "Sensor")
             self._validate_condition_for_sensor_type(request.condition, sensor.data_type)
-            data = request.model_dump()
+            action_rows = await self._build_alert_action_rows(uow, tenant_id, request.actions or [])
+            data = request.model_dump(exclude={"actions"})
             alert_rule = await uow.alert_rule.create(data)
+            if action_rows:
+                await uow.alert_action.create_many(
+                    [{"rule_id": alert_rule.id, **action_row} for action_row in action_rows]
+                )
             created_alert_rule_id = alert_rule.id
-            result = AlertRuleResponse.model_validate(alert_rule)
+            alert_rule_full = await uow.alert_rule.get_for_tenant_by_id(created_alert_rule_id, tenant_id)
+            result = AlertRuleResponse.model_validate(alert_rule_full or alert_rule)
 
         async with RedisUnitOfWork() as redis_uow:
             await redis_uow.alert_state.clear_by_rule(created_alert_rule_id)
@@ -115,11 +142,27 @@ class AlertRuleService(TenantValidationMixin):
             updates = request.model_dump(exclude_unset=True)
             new_condition = updates.get("condition", alert_rule.condition)
             self._validate_condition_for_sensor_type(new_condition, sensor.data_type)
-            updated = await uow.alert_rule.update(
-                filters={"id": alert_rule_id},
-                updates=updates,
-            )
-            result = AlertRuleResponse.model_validate(updated)
+            actions_provided = "actions" in updates
+            updates.pop("actions", None)
+
+            if updates:
+                await uow.alert_rule.update(
+                    filters={"id": alert_rule_id},
+                    updates=updates,
+                )
+
+            if actions_provided:
+                action_rows = await self._build_alert_action_rows(uow, tenant_id, request.actions or [])
+                await uow.alert_action.delete_many(filters={"rule_id": alert_rule_id})
+                if action_rows:
+                    await uow.alert_action.create_many(
+                        [{"rule_id": alert_rule_id, **action_row} for action_row in action_rows]
+                    )
+
+            refreshed = await uow.alert_rule.get_for_tenant_by_id(alert_rule_id=alert_rule_id, tenant_id=tenant_id)
+            if not refreshed:
+                raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
+            result = AlertRuleResponse.model_validate(refreshed)
 
         async with RedisUnitOfWork() as redis_uow:
             await redis_uow.alert_state.clear_by_rule(alert_rule_id)

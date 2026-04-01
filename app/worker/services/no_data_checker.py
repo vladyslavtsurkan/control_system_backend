@@ -56,6 +56,7 @@ async def _run_no_data_check_once() -> list[AlertEvent]:
                     rule_name=rule.name,
                     severity=rule.severity.value,
                     timeout_seconds=timeout,
+                    organization_id=rule_cache_service.get_org_id(rule.sensor_id),
                 )
                 if event is not None:
                     alert_events.append(event)

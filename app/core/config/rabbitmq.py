@@ -18,6 +18,7 @@ class RabbitMQConfig(BaseConfig):
     TELEMETRY_ROUTING_KEY: str = Field("telemetry", alias="RABBITMQ_TELEMETRY_ROUTING_KEY")
 
     CONTROL_EXCHANGE: str = Field("iiot_control", alias="RABBITMQ_CONTROL_EXCHANGE")
+    CONTROL_COMMAND_EXCHANGE: str = Field("iiot_control_command", alias="RABBITMQ_CONTROL_COMMAND_EXCHANGE")
     CONTROL_QUEUE: str = Field("rule_invalidation", alias="RABBITMQ_CONTROL_QUEUE")
     CONTROL_QUEUE_MODE: Literal["shared", "per_worker"] = Field(
         "per_worker",

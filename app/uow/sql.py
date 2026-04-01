@@ -11,6 +11,7 @@ from app.repositories import (
     SensorRepository,
     ReadingRepository,
     AlertRuleRepository,
+    AlertActionRepository,
     AlertRepository,
     UserRepository,
 )
@@ -49,6 +50,7 @@ class SQLUnitOfWork(ABCUnitOfWork):
         self.sensor = SensorRepository(session=self.session)
         self.reading = ReadingRepository(session=self.session)
         self.alert_rule = AlertRuleRepository(session=self.session)
+        self.alert_action = AlertActionRepository(session=self.session)
         self.alert = AlertRepository(session=self.session)
         return self
 

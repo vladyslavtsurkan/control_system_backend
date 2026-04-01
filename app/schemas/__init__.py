@@ -34,6 +34,7 @@ from app.schemas.sensor import (
     SensorBase,
     SensorCreateRequest,
     SensorUpdateRequest,
+    SensorControlRequest,
     SensorResponse,
     SensorWithReadingsResponse,
 )
@@ -49,6 +50,8 @@ from app.schemas.alert_rule import (
     NoDataThreshold,
     Threshold,
     AlertRuleBase,
+    AlertActionCreateRequest,
+    AlertActionResponse,
     AlertRuleCreateRequest,
     AlertRuleUpdateRequest,
     AlertRuleBriefResponse,
@@ -98,6 +101,7 @@ __all__ = [
     "SensorBase",
     "SensorCreateRequest",
     "SensorUpdateRequest",
+    "SensorControlRequest",
     "SensorResponse",
     "SensorWithReadingsResponse",
     # Reading & Alert
@@ -107,6 +111,8 @@ __all__ = [
     "AlertResponse",
     # Alert Rule
     "AlertRuleBase",
+    "AlertActionCreateRequest",
+    "AlertActionResponse",
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
     "AlertRuleBriefResponse",

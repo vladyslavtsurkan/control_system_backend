@@ -1,4 +1,4 @@
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, StrictBool, StrictFloat, StrictInt, StrictStr, model_validator
@@ -12,6 +12,8 @@ __all__ = [
     "NoDataThreshold",
     "Threshold",
     "AlertRuleBase",
+    "AlertActionCreateRequest",
+    "AlertActionResponse",
     "AlertRuleCreateRequest",
     "AlertRuleUpdateRequest",
     "AlertRuleBriefResponse",
@@ -117,6 +119,7 @@ class AlertRuleBase(BaseModel):
 
 class AlertRuleCreateRequest(AlertRuleBase):
     sensor_id: UUID
+    actions: list["AlertActionCreateRequest"] | None = None
 
 
 class AlertRuleUpdateRequest(BaseModel):
@@ -126,6 +129,7 @@ class AlertRuleUpdateRequest(BaseModel):
     threshold: Threshold | None = None
     duration_seconds: int | None = Field(None, ge=0)
     is_active: bool | None = None
+    actions: list["AlertActionCreateRequest"] | None = None
 
     @model_validator(mode="after")
     def _check_condition_threshold(self) -> Self:
@@ -153,5 +157,18 @@ class AlertRuleResponse(IdBase, CreatedAtBase):
     threshold: Threshold
     duration_seconds: int
     is_active: bool
+    actions: list["AlertActionResponse"] = Field(default_factory=list)
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AlertActionCreateRequest(BaseModel):
+    target_sensor_id: UUID
+    trigger_payload: dict[str, Any] | None = None
+    resolve_payload: dict[str, Any] | None = None
+
+
+class AlertActionResponse(IdBase, CreatedAtBase, AlertActionCreateRequest):
+    rule_id: UUID
 
     model_config = ConfigDict(from_attributes=True)

@@ -5,7 +5,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.models import Organization
-from app.models.opc_server import CollectorApiKey, OpcServer, Sensor
+from app.models.collector_api_key import CollectorApiKey
+from app.models.opc_server import OpcServer
+from app.models.sensor import Sensor
 from app.repositories.base import BaseRepository
 
 __all__ = ["CollectorApiKeyRepository"]

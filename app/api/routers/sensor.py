@@ -15,6 +15,7 @@ from app.schemas.base import PaginatedResponse
 from app.schemas.sensor import (
     SensorCreateRequest,
     SensorUpdateRequest,
+    SensorControlRequest,
     SensorResponse,
     SensorWithReadingsResponse,
 )
@@ -103,6 +104,25 @@ async def update_sensor(
         sensor_id=sensor_id,
         current_user=user,
         request=request,
+    )
+
+
+@router.post("/{sensor_id}/control", status_code=status.HTTP_202_ACCEPTED)
+async def control_sensor(
+    uow: TenantUnitOfWorkDep,
+    tenant_id: TenantIdDep,
+    sensor_id: UUID,
+    payload: SensorControlRequest,
+    user: current_user,
+    service: sensor_service,
+):
+    """Dispatch a control command to the edge for a specific sensor."""
+    return await service.send_control_command(
+        uow=uow,
+        tenant_id=tenant_id,
+        sensor_id=sensor_id,
+        command_req=payload,
+        current_user=user,
     )
 
 
