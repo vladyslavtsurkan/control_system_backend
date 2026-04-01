@@ -38,6 +38,7 @@ class SensorRepository(BaseRepository[Sensor]):
         offset: int = 0,
         limit: int = 10,
         opc_server_id: UUID | None = None,
+        is_writable: bool | None = None,
     ) -> tuple[Sequence[Sensor], int]:
         stmt = (
             select(Sensor, func.count().over().label("total_count"))
@@ -54,6 +55,8 @@ class SensorRepository(BaseRepository[Sensor]):
         )
         if opc_server_id:
             stmt = stmt.where(OpcServer.id == opc_server_id)
+        if is_writable is not None:
+            stmt = stmt.where(self.model.is_writable == is_writable)
 
         rows = (await self._session.execute(stmt)).all()
         if not rows:

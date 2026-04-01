@@ -59,6 +59,7 @@ class SensorService(TenantValidationMixin):
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         opc_server_id: UUID | None = None,
+        is_writable: bool | None = None,
         offset: int = 0,
         limit: int = PAGINATION_PER_PAGE,
         prefetch_readings: bool = False,
@@ -73,6 +74,7 @@ class SensorService(TenantValidationMixin):
                 offset=offset,
                 limit=limit,
                 opc_server_id=opc_server_id,
+                is_writable=is_writable,
             )
 
             sensor_readings: dict[UUID, ReadingsBucketedResponse] = {}
