@@ -12,8 +12,11 @@ __all__ = ["Sensor"]
 class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
     __tablename__ = "sensors"
 
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     opc_server_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("opc_servers.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("opc_servers.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)

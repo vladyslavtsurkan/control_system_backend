@@ -14,11 +14,14 @@ __all__ = ["Alert"]
 class Alert(Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin):
     __tablename__ = "alerts"
 
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     sensor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, index=True
     )
     rule_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True
+        UUID(as_uuid=True), ForeignKey("alert_rules.id", ondelete="SET NULL"), nullable=True, index=True
     )
     message: Mapped[str] = mapped_column(Text, nullable=False)
     triggered_value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

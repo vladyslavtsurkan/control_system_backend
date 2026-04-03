@@ -86,13 +86,14 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
     reading_rows: list[ReadingWrite] = []
     alert_events: list[AlertEvent] = []
 
+    # Sort the whole batch by sensor_id + time
+    ordered_batch = sorted(batch, key=lambda r: (r["sensor_id"], r["time"]))
+    grouped_by_sensor_id_batch = groupby(ordered_batch, key=lambda r: r["sensor_id"])
+
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
-            # Sort the whole batch by sensor_id + time
-            ordered_batch = sorted(batch, key=lambda r: (r["sensor_id"], r["time"]))
-
             # Group batch by sensor_id
-            for sensor_id_str, group in groupby(ordered_batch, key=lambda r: r["sensor_id"]):
+            for sensor_id_str, group in grouped_by_sensor_id_batch:
                 sensor_readings = list(group)
                 sensor_id = sensor_readings[0]["sensor_id"]
                 organization_id = rule_cache_service.get_org_id(sensor_id)
@@ -102,6 +103,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
                     row: ReadingWrite = {
                         "time": reading["time"],
+                        "organization_id": organization_id,
                         "sensor_id": reading["sensor_id"],
                         "val_num": val_num,
                         "val_bool": val_bool,

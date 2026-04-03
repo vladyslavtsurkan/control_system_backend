@@ -47,7 +47,7 @@ class AlertRuleService(TenantValidationMixin):
                 raise ObjectNotFoundException(str(action.target_sensor_id), "Sensor")
             if not target_sensor.is_writable:
                 raise BadRequestException("Target sensor is not writable")
-            rows.append(action.model_dump())
+            rows.append({**action.model_dump(), "organization_id": tenant_id})
         return rows
 
     async def create_alert_rule(
@@ -66,6 +66,7 @@ class AlertRuleService(TenantValidationMixin):
             self._validate_condition_for_sensor_type(request.condition, sensor.data_type)
             action_rows = await self._build_alert_action_rows(uow, tenant_id, request.actions or [])
             data = request.model_dump(exclude={"actions"})
+            data["organization_id"] = tenant_id
             alert_rule = await uow.alert_rule.create(data)
             if action_rows:
                 await uow.alert_action.create_many(

@@ -12,6 +12,9 @@ __all__ = ["CollectorApiKey"]
 class CollectorApiKey(Base, UUIDMixin, CreatedAtMixin, UpdatedAtMixin):
     __tablename__ = "collector_api_keys"
 
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     opc_server_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("opc_servers.id", ondelete="CASCADE"), unique=True, nullable=False
     )

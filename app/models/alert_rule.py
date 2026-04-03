@@ -14,8 +14,11 @@ __all__ = ["AlertRule"]
 class AlertRule(Base, UUIDMixin, CreatedAtMixin):
     __tablename__ = "alert_rules"
 
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     sensor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     severity: Mapped[AlertSeverityEnum] = mapped_column(

@@ -7,6 +7,7 @@ __all__ = ["ReadingWrite", "AlertEvent"]
 
 class ReadingWrite(TypedDict):
     time: datetime
+    organization_id: UUID | None
     sensor_id: UUID
     val_num: float | None
     val_bool: bool | None

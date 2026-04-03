@@ -158,12 +158,13 @@ class OpcServerService(TenantValidationMixin):
 
             record = await uow.collector_api_key.create_or_update(
                 obj_in={
+                    "organization_id": tenant_id,
                     "opc_server_id": server_id,
                     "key_prefix": key_prefix,
                     "hashed_key": hashed_key,
                 },
                 conflict_columns=["opc_server_id"],
-                update_columns=["key_prefix", "hashed_key"],
+                update_columns=["key_prefix", "hashed_key", "organization_id"],
             )
             return ApiKeyCreateResponse(
                 key_prefix=key_prefix,

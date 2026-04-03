@@ -51,6 +51,7 @@ class SensorService(TenantValidationMixin):
                 raise ObjectNotFoundException(str(request.opc_server_id), "OpcServer")
 
             data = request.model_dump()
+            data["organization_id"] = tenant_id
             sensor = await uow.sensor.create(data)
             return SensorResponse.model_validate(sensor)
 

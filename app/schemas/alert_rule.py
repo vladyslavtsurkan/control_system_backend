@@ -1,8 +1,19 @@
 from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict, StrictBool, StrictFloat, StrictInt, StrictStr, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    ConfigDict,
+    StrictBool,
+    StrictFloat,
+    StrictInt,
+    StrictStr,
+    model_validator,
+    field_validator,
+)
 
+from app.core.constants import MAX_AMOUNT_OF_ACTIONS_PER_RULE
 from app.enums import AlertSeverityEnum, AlertConditionEnum
 from app.schemas.base import IdBase, CreatedAtBase
 
@@ -97,6 +108,11 @@ def _validate_condition_threshold(
             raise ValueError(f"Condition `{condition.value}` requires numeric `threshold.value`")
 
 
+def _validate_alert_actions(actions: list[AlertActionCreateRequest]) -> None:
+    if len(actions) > MAX_AMOUNT_OF_ACTIONS_PER_RULE:
+        raise ValueError(f"A maximum of {MAX_AMOUNT_OF_ACTIONS_PER_RULE} actions are allowed per alert rule")
+
+
 class AlertRuleBase(BaseModel):
     name: str = Field(..., max_length=255)
     severity: AlertSeverityEnum = AlertSeverityEnum.warning
@@ -121,6 +137,13 @@ class AlertRuleCreateRequest(AlertRuleBase):
     sensor_id: UUID
     actions: list["AlertActionCreateRequest"] | None = None
 
+    @field_validator("actions")
+    @classmethod
+    def _validate_actions(cls, value: list[AlertActionCreateRequest] | None) -> None:
+        if value is not None:
+            _validate_alert_actions(value)
+        return value
+
 
 class AlertRuleUpdateRequest(BaseModel):
     name: str | None = Field(None, max_length=255)
@@ -135,6 +158,8 @@ class AlertRuleUpdateRequest(BaseModel):
     def _check_condition_threshold(self) -> Self:
         if self.condition is not None and self.threshold is not None:
             _validate_condition_threshold(self.condition, self.threshold)
+        if self.actions is not None:
+            _validate_alert_actions(self.actions)
         return self
 
 

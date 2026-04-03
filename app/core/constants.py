@@ -76,3 +76,6 @@ WORKER_RETRY_BASE_DELAY_SECONDS = 0.05
 
 # Sensor organization cache TTL
 SENSOR_ORG_TTL_SECONDS = 60 * 60 * 24
+
+# Maximum amount of alert actions per alert rule
+MAX_AMOUNT_OF_ACTIONS_PER_RULE = 10

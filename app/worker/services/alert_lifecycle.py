@@ -116,15 +116,18 @@ class AlertLifecycleService:
 
     async def _dispatch_actions(self, rule_id: UUID, organization_id: UUID, is_trigger: bool) -> None:
         try:
+            action_dispatches: list[tuple[UUID, UUID, Any]] = []
             async with self._sql_uow_factory(tenant_id=organization_id) as sql_uow:
                 actions = await sql_uow.alert_action.get_multi_without_pagination(rule_id=rule_id)
+                for action in actions:
+                    payload = action.trigger_payload if is_trigger else action.resolve_payload
+                    action_dispatches.append((action.id, action.target_sensor_id, payload))
 
-            if not actions:
+            if not action_dispatches:
                 return
 
             async with self._rabbitmq_uow_factory() as rabbitmq_uow:
-                for action in actions:
-                    payload = action.trigger_payload if is_trigger else action.resolve_payload
+                for action_id, target_sensor_id, payload in action_dispatches:
                     if not payload:
                         continue
 
@@ -132,20 +135,20 @@ class AlertLifecycleService:
                     if not isinstance(payload, dict) or "value" not in payload:
                         logger.warning(
                             "Skipping action dispatch with invalid payload format for action={action_id} rule={rule_id}",
-                            action_id=action.id,
+                            action_id=action_id,
                             rule_id=rule_id,
                         )
                         continue
 
                     command = telemetry_pb2.ControlCommand(  # type: ignore[attr-defined]
                         command_id=str(uuid4()),
-                        sensor_id=str(action.target_sensor_id),
+                        sensor_id=str(target_sensor_id),
                         timestamp=int(time.time() * 1000),
                     )
                     if not self._apply_control_value(command, value):
                         logger.warning(
                             "Skipping action dispatch with unsupported payload value type for action={action_id} rule={rule_id}",
-                            action_id=action.id,
+                            action_id=action_id,
                             rule_id=rule_id,
                         )
                         continue
@@ -156,7 +159,7 @@ class AlertLifecycleService:
                     )
                     logger.info(
                         "Dispatched control command to sensor {sensor_id} for rule {rule_id}",
-                        sensor_id=action.target_sensor_id,
+                        sensor_id=target_sensor_id,
                         rule_id=rule_id,
                     )
         except Exception:
@@ -204,6 +207,7 @@ class AlertLifecycleService:
             async with uow.session.begin_nested():
                 created = await uow.alert.create(
                     {
+                        "organization_id": organization_id,
                         "sensor_id": sensor_id,
                         "rule_id": rule_id,
                         "message": message,
@@ -380,6 +384,7 @@ class AlertLifecycleService:
             async with uow.session.begin_nested():
                 created = await uow.alert.create(
                     {
+                        "organization_id": organization_id,
                         "sensor_id": sensor_id,
                         "rule_id": rule_id,
                         "message": message,
