@@ -58,7 +58,7 @@ async def set_rls_bypass(session: AsyncSession, bypass: bool = True) -> None:
 
 
 @asynccontextmanager
-async def tenant_context(session: AsyncSession, tenant_id: UUID | str) -> AsyncGenerator[None, None]:
+async def tenant_context(session: AsyncSession, tenant_id: UUID | str) -> AsyncGenerator[None]:
     """Context manager for setting tenant context during a database operation.
 
     Usage:

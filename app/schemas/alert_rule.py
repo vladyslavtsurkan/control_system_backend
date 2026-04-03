@@ -135,7 +135,7 @@ class AlertRuleBase(BaseModel):
 
 class AlertRuleCreateRequest(AlertRuleBase):
     sensor_id: UUID
-    actions: list["AlertActionCreateRequest"] | None = None
+    actions: list[AlertActionCreateRequest] | None = None
 
     @field_validator("actions")
     @classmethod
@@ -152,7 +152,7 @@ class AlertRuleUpdateRequest(BaseModel):
     threshold: Threshold | None = None
     duration_seconds: int | None = Field(None, ge=0)
     is_active: bool | None = None
-    actions: list["AlertActionCreateRequest"] | None = None
+    actions: list[AlertActionCreateRequest] | None = None
 
     @model_validator(mode="after")
     def _check_condition_threshold(self) -> Self:
@@ -182,7 +182,7 @@ class AlertRuleResponse(IdBase, CreatedAtBase):
     threshold: Threshold
     duration_seconds: int
     is_active: bool
-    actions: list["AlertActionResponse"] = Field(default_factory=list)
+    actions: list[AlertActionResponse] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
