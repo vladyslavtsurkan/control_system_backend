@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import TypedDict
 from uuid import UUID
 
 from app.core.constants import REDIS_ALERT_STATE_TTL_SECONDS
@@ -8,6 +9,13 @@ __all__ = ["AlertStateRepository"]
 
 ALERT_STATE_KEY = "alert_state:{sensor_id}:{rule_id}"
 ALERT_PENDING_KEY = "alert:pending:{rule_id}:{sensor_id}"
+
+
+class PendingMutation(TypedDict):
+    sensor_id: UUID
+    rule_id: UUID
+    first_spike_ts: float | None
+    ttl_seconds: int | None
 
 
 class AlertStateRepository(BaseRedisRepository):
@@ -32,6 +40,31 @@ class AlertStateRepository(BaseRedisRepository):
             "ok_streak": int(state.get("ok_streak", "0")),
             "last_update_sent_at": state.get("last_update_sent_at"),
         }
+
+    async def get_states_bulk(self, pairs: list[tuple[UUID, UUID]]) -> dict[tuple[UUID, UUID], dict | None]:
+        unique_pairs = list(dict.fromkeys(pairs))
+        if not unique_pairs:
+            return {}
+
+        keys = [ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id) for sensor_id, rule_id in unique_pairs]
+        pipe = self.redis.pipeline(transaction=False)
+        for key in keys:
+            await pipe.hgetall(key)
+        rows = await pipe.execute()
+
+        result: dict[tuple[UUID, UUID], dict | None] = {}
+        for pair, row in zip(unique_pairs, rows):
+            if not row:
+                result[pair] = None
+                continue
+            state = self._decode_bytes(row)
+            result[pair] = {
+                "alert_id": state.get("alert_id"),
+                "status": state.get("status", "open"),
+                "ok_streak": int(state.get("ok_streak", "0")),
+                "last_update_sent_at": state.get("last_update_sent_at"),
+            }
+        return result
 
     async def set_open(
         self,
@@ -80,6 +113,38 @@ class AlertStateRepository(BaseRedisRepository):
             await self.clear_pending(sensor_id, rule_id)
             return None
 
+    async def get_pending_bulk(self, pairs: list[tuple[UUID, UUID]]) -> dict[tuple[UUID, UUID], float | None]:
+        unique_pairs = list(dict.fromkeys(pairs))
+        if not unique_pairs:
+            return {}
+
+        keys = [ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id) for sensor_id, rule_id in unique_pairs]
+        pipe = self.redis.pipeline(transaction=False)
+        for key in keys:
+            await pipe.get(key)
+        values = await pipe.execute()
+
+        result: dict[tuple[UUID, UUID], float | None] = {}
+        invalid_keys: list[str] = []
+        for pair, key, value in zip(unique_pairs, keys, values):
+            decoded = self._decode_value(value)
+            if decoded is None:
+                result[pair] = None
+                continue
+            try:
+                result[pair] = float(decoded)
+            except TypeError, ValueError:
+                result[pair] = None
+                invalid_keys.append(key)
+
+        if invalid_keys:
+            cleanup_pipe = self.redis.pipeline(transaction=False)
+            for key in invalid_keys:
+                await cleanup_pipe.delete(key)
+            await cleanup_pipe.execute()
+
+        return result
+
     async def set_pending(self, sensor_id: UUID, rule_id: UUID, first_spike_ts: float, ttl_seconds: int) -> None:
         key = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id)
         await self.set_raw(key, str(first_spike_ts), ttl_seconds=ttl_seconds)
@@ -87,6 +152,26 @@ class AlertStateRepository(BaseRedisRepository):
     async def clear_pending(self, sensor_id: UUID, rule_id: UUID) -> None:
         key = ALERT_PENDING_KEY.format(rule_id=rule_id, sensor_id=sensor_id)
         await self.delete(key)
+
+    async def bulk_update_pending(self, mutations: list[PendingMutation]) -> None:
+        if not mutations:
+            return
+
+        pipe = self.redis.pipeline(transaction=False)
+        for mutation in mutations:
+            key = ALERT_PENDING_KEY.format(rule_id=mutation["rule_id"], sensor_id=mutation["sensor_id"])
+            first_spike_ts = mutation["first_spike_ts"]
+            if first_spike_ts is None:
+                await pipe.delete(key)
+                continue
+
+            ttl_seconds = mutation.get("ttl_seconds")
+            if ttl_seconds is None:
+                await pipe.set(key, str(first_spike_ts))
+            else:
+                await pipe.set(key, str(first_spike_ts), ex=ttl_seconds)
+
+        await pipe.execute()
 
     async def clear_by_rule(self, rule_id: UUID) -> None:
         pattern = ALERT_STATE_KEY.format(sensor_id="*", rule_id=rule_id)

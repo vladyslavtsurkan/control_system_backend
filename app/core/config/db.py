@@ -11,7 +11,7 @@ class DataBaseConfig(BaseConfig):
     DB: str = Field(..., alias="POSTGRES_DB")
     DATA_VOLUME_NAME: str = "timescale_db_data"
 
-    POOL_SIZE: int = 50
+    POOL_SIZE: int = 20
     MAX_OVERFLOW: int = 10
     POOL_RECYCLE: int = 1800
 

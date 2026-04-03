@@ -87,11 +87,7 @@ class SensorRepository(BaseRepository[Sensor]):
         if not sensor_ids:
             return {}
 
-        stmt = (
-            select(Sensor.id, OpcServer.organization_id)
-            .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
-            .where(Sensor.id.in_(sensor_ids))
-        )
+        stmt = select(Sensor.id, Sensor.organization_id).where(Sensor.id.in_(sensor_ids))
         result = await self._session.execute(stmt)
         return {row[0]: row[1] for row in result.all()}
 

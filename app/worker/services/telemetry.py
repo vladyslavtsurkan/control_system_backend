@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from itertools import groupby
+from typing import Any
 from uuid import UUID
 
 from app.enums import AlertConditionEnum
@@ -85,20 +86,38 @@ async def process_telemetry_batch(batch: list[TelemetryReading]) -> tuple[int, i
 async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[list[ReadingWrite], list[AlertEvent]]:
     reading_rows: list[ReadingWrite] = []
     alert_events: list[AlertEvent] = []
+    alerts_to_trigger: list[dict[str, Any]] = []
+    alerts_to_recover: list[dict[str, Any]] = []
+    no_data_recoveries: list[dict[str, Any]] = []
+    redis_mutations: list[dict[str, Any]] = []
+    lifecycle_order: list[tuple[str, int]] = []
 
     # Sort the whole batch by sensor_id + time
     ordered_batch = sorted(batch, key=lambda r: (r["sensor_id"], r["time"]))
-    grouped_by_sensor_id_batch = groupby(ordered_batch, key=lambda r: r["sensor_id"])
+    grouped_sensor_batches = [
+        (sensor_id_str, list(group)) for sensor_id_str, group in groupby(ordered_batch, key=lambda r: r["sensor_id"])
+    ]
 
     async with RedisUnitOfWork() as redis_uow:
         async with SQLUnitOfWork(bypass_rls=True) as uow:
-            # Group batch by sensor_id
-            for sensor_id_str, group in grouped_by_sensor_id_batch:
-                sensor_readings = list(group)
+            # PHASE 1: pre-fetch all Redis state in bulk for sensor+rule pairs in this batch.
+            sensor_contexts: list[tuple[UUID, UUID | None, list[TelemetryReading], list[Any]]] = []
+            pairs_set: set[tuple[UUID, UUID]] = set()
+            for _, sensor_readings in grouped_sensor_batches:
                 sensor_id = sensor_readings[0]["sensor_id"]
                 organization_id = rule_cache_service.get_org_id(sensor_id)
+                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: r.id)
+                sensor_contexts.append((sensor_id, organization_id, sensor_readings, rules))
+                for rule in rules:
+                    if rule.condition != AlertConditionEnum.no_data:
+                        pairs_set.add((sensor_id, rule.id))
 
-                # 3. Prepare data for insert to DB
+            pairs = list(pairs_set)
+            states_by_pair = await redis_uow.alert_state.get_states_bulk(pairs)
+            pending_by_pair = await redis_uow.alert_state.get_pending_bulk(pairs)
+
+            # PHASE 2: in-memory compute, no await inside sensor/rule loops.
+            for sensor_id, organization_id, sensor_readings, rules in sensor_contexts:
                 for reading in sensor_readings:
                     scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
                     row: ReadingWrite = {
@@ -112,26 +131,23 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     }
                     reading_rows.append(row)
 
-                # Get rule from cache
-                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: r.id)
-
                 for rule in rules:
                     if rule.condition == AlertConditionEnum.no_data:
                         if sensor_readings:
-                            event = await handle_no_data_recovery(
-                                uow=uow,
-                                redis_uow=redis_uow,
-                                sensor_id=sensor_id,
-                                rule_id=rule.id,
-                                severity=rule.severity.value,
-                                organization_id=organization_id,
+                            no_data_recoveries.append(
+                                {
+                                    "sensor_id": sensor_id,
+                                    "rule_id": rule.id,
+                                    "severity": rule.severity.value,
+                                    "organization_id": organization_id,
+                                }
                             )
-                            if event is not None:
-                                alert_events.append(event)
+                            lifecycle_order.append(("no_data_recovery", len(no_data_recoveries) - 1))
                         continue
 
-                    active_state = await redis_uow.alert_state.get_state(sensor_id=sensor_id, rule_id=rule.id)
-                    pending_ts = await redis_uow.alert_state.get_pending(sensor_id=sensor_id, rule_id=rule.id)
+                    pair = (sensor_id, rule.id)
+                    active_state = states_by_pair.get(pair)
+                    pending_ts = pending_by_pair.get(pair)
                     pending_mutated = False
 
                     for reading in sensor_readings:
@@ -151,47 +167,96 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                         pending_mutated = pending_mutated or pending_state_mutated
 
                         if should_trigger:
-                            event = await handle_violation(
-                                uow=uow,
-                                redis_uow=redis_uow,
-                                reading=reading,
-                                rule_id=rule.id,
-                                rule_name=rule.name,
-                                condition=rule.condition.value,
-                                value=scalar_value,
-                                threshold=rule.threshold,
-                                severity=rule.severity.value,
-                                organization_id=organization_id,
+                            alerts_to_trigger.append(
+                                {
+                                    "reading": reading,
+                                    "rule_id": rule.id,
+                                    "rule_name": rule.name,
+                                    "condition": rule.condition.value,
+                                    "value": scalar_value,
+                                    "threshold": rule.threshold,
+                                    "severity": rule.severity.value,
+                                    "organization_id": organization_id,
+                                }
                             )
+                            lifecycle_order.append(("trigger", len(alerts_to_trigger) - 1))
                             active_state = {"status": "open"}
                         elif not is_violated:
-                            event = await handle_recovery(
-                                uow=uow,
-                                redis_uow=redis_uow,
-                                sensor_id=sensor_id,
-                                rule_id=rule.id,
-                                severity=rule.severity.value,
-                                organization_id=organization_id,
+                            alerts_to_recover.append(
+                                {
+                                    "sensor_id": sensor_id,
+                                    "rule_id": rule.id,
+                                    "severity": rule.severity.value,
+                                    "organization_id": organization_id,
+                                }
                             )
+                            lifecycle_order.append(("recover", len(alerts_to_recover) - 1))
                             active_state = None
-                        else:
-                            event = None
-
-                        if event is not None:
-                            alert_events.append(event)
 
                     if pending_mutated:
-                        if pending_ts is None:
-                            await redis_uow.alert_state.clear_pending(sensor_id=sensor_id, rule_id=rule.id)
-                        else:
-                            await redis_uow.alert_state.set_pending(
-                                sensor_id=sensor_id,
-                                rule_id=rule.id,
-                                first_spike_ts=pending_ts,
-                                ttl_seconds=max(0, int(rule.duration_seconds)) + 60,
-                            )
+                        redis_mutations.append(
+                            {
+                                "sensor_id": sensor_id,
+                                "rule_id": rule.id,
+                                "first_spike_ts": pending_ts,
+                                "ttl_seconds": max(0, int(rule.duration_seconds)) + 60,
+                            }
+                        )
 
+            # PHASE 3: persist readings, then execute lifecycle handlers concurrently, then bulk update pending state.
             if reading_rows:
                 await uow.reading.create_many(reading_rows)
+
+            lifecycle_tasks = []
+            for kind, index in lifecycle_order:
+                if kind == "no_data_recovery":
+                    intent = no_data_recoveries[index]
+                    lifecycle_tasks.append(
+                        handle_no_data_recovery(
+                            uow=uow,
+                            redis_uow=redis_uow,
+                            sensor_id=intent["sensor_id"],
+                            rule_id=intent["rule_id"],
+                            severity=intent["severity"],
+                            organization_id=intent["organization_id"],
+                        )
+                    )
+                elif kind == "trigger":
+                    intent = alerts_to_trigger[index]
+                    lifecycle_tasks.append(
+                        handle_violation(
+                            uow=uow,
+                            redis_uow=redis_uow,
+                            reading=intent["reading"],
+                            rule_id=intent["rule_id"],
+                            rule_name=intent["rule_name"],
+                            condition=intent["condition"],
+                            value=intent["value"],
+                            threshold=intent["threshold"],
+                            severity=intent["severity"],
+                            organization_id=intent["organization_id"],
+                        )
+                    )
+                else:
+                    intent = alerts_to_recover[index]
+                    lifecycle_tasks.append(
+                        handle_recovery(
+                            uow=uow,
+                            redis_uow=redis_uow,
+                            sensor_id=intent["sensor_id"],
+                            rule_id=intent["rule_id"],
+                            severity=intent["severity"],
+                            organization_id=intent["organization_id"],
+                        )
+                    )
+
+            if lifecycle_tasks:
+                for task in lifecycle_tasks:
+                    event = await task
+                    if event is not None:
+                        alert_events.append(event)
+
+            if redis_mutations:
+                await redis_uow.alert_state.bulk_update_pending(redis_mutations)
 
     return reading_rows, alert_events
