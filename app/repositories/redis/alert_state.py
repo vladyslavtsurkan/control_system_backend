@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
+from app.core.constants import REDIS_ALERT_STATE_TTL_SECONDS
 from app.repositories.redis.base import BaseRedisRepository
 
 __all__ = ["AlertStateRepository"]
@@ -10,11 +11,14 @@ ALERT_PENDING_KEY = "alert:pending:{rule_id}:{sensor_id}"
 
 
 class AlertStateRepository(BaseRedisRepository):
-    """Stores transient alert lifecycle state per ``sensor_id + rule_id``.
+    """
+    Stores transient alert lifecycle state per ``sensor_id + rule_id``.
 
     This state is intentionally ephemeral; if Redis is flushed, the worker
     rebuilds state from subsequent telemetry messages.
     """
+
+    DEFAULT_TTL_SECONDS = REDIS_ALERT_STATE_TTL_SECONDS
 
     async def get_state(self, sensor_id: UUID, rule_id: UUID) -> dict | None:
         key = ALERT_STATE_KEY.format(sensor_id=sensor_id, rule_id=rule_id)

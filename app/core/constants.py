@@ -69,6 +69,7 @@ WS_TICKET_TTL = 30  # seconds — single-use ticket lifetime
 DEFAULT_NO_DATA_TIMEOUT_SECONDS = 300  # 5 minutes
 ALERT_UPDATE_THROTTLE_SECONDS = 120  # emit update events at most once per 2 minutes per rule
 ALERT_RESOLVE_CONSECUTIVE_OK_READINGS = 10  # for NO_DATA auto-resolve
+REDIS_ALERT_STATE_TTL_SECONDS = 60 * 60 * 24  # 24 hours — how long to keep alert state in Redis without updates
 
 # Worker settings
 WORKER_MAX_DB_RETRIES = 3
