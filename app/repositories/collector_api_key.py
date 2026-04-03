@@ -50,7 +50,7 @@ class CollectorApiKeyRepository(BaseRepository[CollectorApiKey]):
             .where(OpcServer.is_deleted.is_(False), Organization.is_deleted.is_(False))
             .options(
                 joinedload(CollectorApiKey.opc_server).selectinload(
-                    OpcServer.sensors.and_(Sensor.is_deleted == False)  # noqa: E712
+                    OpcServer.sensors.and_(Sensor.is_deleted.is_(False))
                 ),
             )
         )
