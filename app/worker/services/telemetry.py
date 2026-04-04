@@ -169,30 +169,33 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     pending_mutated = pending_mutated or pending_state_mutated
 
                     if should_trigger:
-                        alerts_to_trigger.append(
-                            {
-                                "reading": reading,
-                                "rule_id": rule.id,
-                                "rule_name": rule.name,
-                                "condition": rule.condition.value,
-                                "value": scalar_value,
-                                "threshold": rule.threshold,
-                                "severity": rule.severity.value,
-                                "organization_id": organization_id,
-                            }
-                        )
-                        lifecycle_order.append(("trigger", len(alerts_to_trigger) - 1))
-                        active_state = {"status": "open"}
+                        if active_state is None or active_state.get("status") != "open":
+                            alerts_to_trigger.append(
+                                {
+                                    "reading": reading,
+                                    "rule_id": rule.id,
+                                    "rule_name": rule.name,
+                                    "condition": rule.condition.value,
+                                    "value": scalar_value,
+                                    "threshold": rule.threshold,
+                                    "severity": rule.severity.value,
+                                    "organization_id": organization_id,
+                                }
+                            )
+                            lifecycle_order.append(("trigger", len(alerts_to_trigger) - 1))
+                            active_state = {"status": "open"}
                     elif not is_violated:
-                        alerts_to_recover.append(
-                            {
-                                "sensor_id": sensor_id,
-                                "rule_id": rule.id,
-                                "severity": rule.severity.value,
-                                "organization_id": organization_id,
-                            }
-                        )
-                        lifecycle_order.append(("recover", len(alerts_to_recover) - 1))
+                        if active_state is not None:
+                            alerts_to_recover.append(
+                                {
+                                    "sensor_id": sensor_id,
+                                    "rule_id": rule.id,
+                                    "severity": rule.severity.value,
+                                    "organization_id": organization_id,
+                                }
+                            )
+                            lifecycle_order.append(("recover", len(alerts_to_recover) - 1))
+
                         active_state = None
 
                 if pending_mutated:

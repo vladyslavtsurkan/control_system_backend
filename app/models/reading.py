@@ -16,10 +16,10 @@ class Reading(Base):
 
     time: Mapped[datetime.datetime] = mapped_column(primary_key=True)
     organization_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True), ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
     )
     sensor_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, primary_key=True, index=True
+        UUID(as_uuid=True), ForeignKey("sensors.id", ondelete="CASCADE"), nullable=False, primary_key=True
     )
     val_num: Mapped[float | None] = mapped_column(Float, nullable=True)
     val_bool: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
