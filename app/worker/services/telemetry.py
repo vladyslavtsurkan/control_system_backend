@@ -117,6 +117,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
 
         # PHASE 2: in-memory compute, no await inside sensor/rule loops.
         for sensor_id, organization_id, sensor_readings, rules in sensor_contexts:
+            processed_readings: list[dict[str, Any]] = []
             for reading in sensor_readings:
                 scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
                 row: ReadingWrite = {
@@ -129,6 +130,7 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                     "payload": dict(reading["payload"]),
                 }
                 reading_rows.append(row)
+                processed_readings.append({"raw": reading, "scalar": scalar_value})
 
             for rule in rules:
                 if rule.condition == AlertConditionEnum.no_data:
@@ -149,8 +151,9 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
                 pending_ts = pending_by_pair.get(pair)
                 pending_mutated = False
 
-                for reading in sensor_readings:
-                    scalar_value, _, _, _ = extract_typed_values(reading["payload"]["value"])
+                for pr in processed_readings:
+                    reading = pr["raw"]
+                    scalar_value = pr["scalar"]
 
                     is_violated, should_trigger, pending_ts, pending_state_mutated = evaluate_rule_with_debounce(
                         sensor_id=sensor_id,
