@@ -9,4 +9,4 @@ wait_for_postgres
 wait_for_rabbitmq
 
 echo "Starting FastStream worker..."
-faststream run app.worker.main:app --workers 1
+faststream run app.worker.main:app --workers ${WORKER_AMOUNT:-1}

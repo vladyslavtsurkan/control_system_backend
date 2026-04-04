@@ -4,7 +4,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Row, select, and_, func, desc, asc, cast
-from sqlalchemy.dialects.postgresql import INTERVAL
+from sqlalchemy.dialects.postgresql import INTERVAL, insert as pg_insert
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.models import Sensor, Reading, AlertRule, Alert, AlertAction, Organization
@@ -258,6 +258,19 @@ class AlertActionRepository(BaseRepository[AlertAction]):
 
 class AlertRepository(BaseRepository[Alert]):
     model = Alert
+
+    async def create_active_if_absent(self, obj_in: dict[str, Any]) -> Alert | None:
+        stmt = (
+            pg_insert(Alert)
+            .values(obj_in)
+            .on_conflict_do_nothing(
+                index_elements=[Alert.sensor_id, Alert.rule_id],
+                index_where=and_(Alert.resolved_at.is_(None), Alert.rule_id.is_not(None)),
+            )
+            .returning(Alert)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
 
     async def get_for_tenant_with_rule(self, alert_id: UUID, tenant_id: UUID) -> Alert | None:
         stmt = (

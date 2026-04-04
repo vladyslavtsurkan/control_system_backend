@@ -99,111 +99,111 @@ async def _process_telemetry_batch_once(batch: list[TelemetryReading]) -> tuple[
     ]
 
     async with RedisUnitOfWork() as redis_uow:
-        async with SQLUnitOfWork(bypass_rls=True) as uow:
-            # PHASE 1: pre-fetch all Redis state in bulk for sensor+rule pairs in this batch.
-            sensor_contexts: list[tuple[UUID, UUID | None, list[TelemetryReading], list[Any]]] = []
-            pairs_set: set[tuple[UUID, UUID]] = set()
-            for _, sensor_readings in grouped_sensor_batches:
-                sensor_id = sensor_readings[0]["sensor_id"]
-                organization_id = rule_cache_service.get_org_id(sensor_id)
-                rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: r.id)
-                sensor_contexts.append((sensor_id, organization_id, sensor_readings, rules))
-                for rule in rules:
-                    if rule.condition != AlertConditionEnum.no_data:
-                        pairs_set.add((sensor_id, rule.id))
+        # PHASE 1: pre-fetch all Redis state in bulk for sensor+rule pairs in this batch.
+        sensor_contexts: list[tuple[UUID, UUID | None, list[TelemetryReading], list[Any]]] = []
+        pairs_set: set[tuple[UUID, UUID]] = set()
+        for _, sensor_readings in grouped_sensor_batches:
+            sensor_id = sensor_readings[0]["sensor_id"]
+            organization_id = rule_cache_service.get_org_id(sensor_id)
+            rules = sorted(rule_cache_service.get_rules(sensor_id), key=lambda r: r.id)
+            sensor_contexts.append((sensor_id, organization_id, sensor_readings, rules))
+            for rule in rules:
+                if rule.condition != AlertConditionEnum.no_data:
+                    pairs_set.add((sensor_id, rule.id))
 
-            pairs = list(pairs_set)
-            states_by_pair = await redis_uow.alert_state.get_states_bulk(pairs)
-            pending_by_pair = await redis_uow.alert_state.get_pending_bulk(pairs)
+        pairs = list(pairs_set)
+        states_by_pair = await redis_uow.alert_state.get_states_bulk(pairs)
+        pending_by_pair = await redis_uow.alert_state.get_pending_bulk(pairs)
 
-            # PHASE 2: in-memory compute, no await inside sensor/rule loops.
-            for sensor_id, organization_id, sensor_readings, rules in sensor_contexts:
-                for reading in sensor_readings:
-                    scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
-                    row: ReadingWrite = {
-                        "time": reading["time"],
-                        "organization_id": organization_id,
-                        "sensor_id": reading["sensor_id"],
-                        "val_num": val_num,
-                        "val_bool": val_bool,
-                        "val_str": val_str,
-                        "payload": dict(reading["payload"]),
-                    }
-                    reading_rows.append(row)
+        # PHASE 2: in-memory compute, no await inside sensor/rule loops.
+        for sensor_id, organization_id, sensor_readings, rules in sensor_contexts:
+            for reading in sensor_readings:
+                scalar_value, val_num, val_bool, val_str = extract_typed_values(reading["payload"]["value"])
+                row: ReadingWrite = {
+                    "time": reading["time"],
+                    "organization_id": organization_id,
+                    "sensor_id": reading["sensor_id"],
+                    "val_num": val_num,
+                    "val_bool": val_bool,
+                    "val_str": val_str,
+                    "payload": dict(reading["payload"]),
+                }
+                reading_rows.append(row)
 
-                for rule in rules:
-                    if rule.condition == AlertConditionEnum.no_data:
-                        if sensor_readings:
-                            no_data_recoveries.append(
-                                {
-                                    "sensor_id": sensor_id,
-                                    "rule_id": rule.id,
-                                    "severity": rule.severity.value,
-                                    "organization_id": organization_id,
-                                }
-                            )
-                            lifecycle_order.append(("no_data_recovery", len(no_data_recoveries) - 1))
-                        continue
-
-                    pair = (sensor_id, rule.id)
-                    active_state = states_by_pair.get(pair)
-                    pending_ts = pending_by_pair.get(pair)
-                    pending_mutated = False
-
-                    for reading in sensor_readings:
-                        scalar_value, _, _, _ = extract_typed_values(reading["payload"]["value"])
-
-                        is_violated, should_trigger, pending_ts, pending_state_mutated = evaluate_rule_with_debounce(
-                            sensor_id=sensor_id,
-                            rule_id=rule.id,
-                            condition=rule.condition,
-                            threshold=rule.threshold,
-                            duration_seconds=rule.duration_seconds,
-                            current_value=scalar_value,
-                            timestamp=reading["time"],
-                            active_state=active_state,
-                            pending_ts=pending_ts,
-                        )
-                        pending_mutated = pending_mutated or pending_state_mutated
-
-                        if should_trigger:
-                            alerts_to_trigger.append(
-                                {
-                                    "reading": reading,
-                                    "rule_id": rule.id,
-                                    "rule_name": rule.name,
-                                    "condition": rule.condition.value,
-                                    "value": scalar_value,
-                                    "threshold": rule.threshold,
-                                    "severity": rule.severity.value,
-                                    "organization_id": organization_id,
-                                }
-                            )
-                            lifecycle_order.append(("trigger", len(alerts_to_trigger) - 1))
-                            active_state = {"status": "open"}
-                        elif not is_violated:
-                            alerts_to_recover.append(
-                                {
-                                    "sensor_id": sensor_id,
-                                    "rule_id": rule.id,
-                                    "severity": rule.severity.value,
-                                    "organization_id": organization_id,
-                                }
-                            )
-                            lifecycle_order.append(("recover", len(alerts_to_recover) - 1))
-                            active_state = None
-
-                    if pending_mutated:
-                        redis_mutations.append(
+            for rule in rules:
+                if rule.condition == AlertConditionEnum.no_data:
+                    if sensor_readings:
+                        no_data_recoveries.append(
                             {
                                 "sensor_id": sensor_id,
                                 "rule_id": rule.id,
-                                "first_spike_ts": pending_ts,
-                                "ttl_seconds": max(0, int(rule.duration_seconds)) + 60,
+                                "severity": rule.severity.value,
+                                "organization_id": organization_id,
                             }
                         )
+                        lifecycle_order.append(("no_data_recovery", len(no_data_recoveries) - 1))
+                    continue
 
-            # PHASE 3: persist readings, then execute lifecycle handlers concurrently, then bulk update pending state.
+                pair = (sensor_id, rule.id)
+                active_state = states_by_pair.get(pair)
+                pending_ts = pending_by_pair.get(pair)
+                pending_mutated = False
+
+                for reading in sensor_readings:
+                    scalar_value, _, _, _ = extract_typed_values(reading["payload"]["value"])
+
+                    is_violated, should_trigger, pending_ts, pending_state_mutated = evaluate_rule_with_debounce(
+                        sensor_id=sensor_id,
+                        rule_id=rule.id,
+                        condition=rule.condition,
+                        threshold=rule.threshold,
+                        duration_seconds=rule.duration_seconds,
+                        current_value=scalar_value,
+                        timestamp=reading["time"],
+                        active_state=active_state,
+                        pending_ts=pending_ts,
+                    )
+                    pending_mutated = pending_mutated or pending_state_mutated
+
+                    if should_trigger:
+                        alerts_to_trigger.append(
+                            {
+                                "reading": reading,
+                                "rule_id": rule.id,
+                                "rule_name": rule.name,
+                                "condition": rule.condition.value,
+                                "value": scalar_value,
+                                "threshold": rule.threshold,
+                                "severity": rule.severity.value,
+                                "organization_id": organization_id,
+                            }
+                        )
+                        lifecycle_order.append(("trigger", len(alerts_to_trigger) - 1))
+                        active_state = {"status": "open"}
+                    elif not is_violated:
+                        alerts_to_recover.append(
+                            {
+                                "sensor_id": sensor_id,
+                                "rule_id": rule.id,
+                                "severity": rule.severity.value,
+                                "organization_id": organization_id,
+                            }
+                        )
+                        lifecycle_order.append(("recover", len(alerts_to_recover) - 1))
+                        active_state = None
+
+                if pending_mutated:
+                    redis_mutations.append(
+                        {
+                            "sensor_id": sensor_id,
+                            "rule_id": rule.id,
+                            "first_spike_ts": pending_ts,
+                            "ttl_seconds": max(0, int(rule.duration_seconds)) + 60,
+                        }
+                    )
+
+        # PHASE 3: persist readings, execute lifecycle handlers, then bulk update pending state.
+        async with SQLUnitOfWork(bypass_rls=True) as uow:
             if reading_rows:
                 await uow.reading.create_many(reading_rows)
 

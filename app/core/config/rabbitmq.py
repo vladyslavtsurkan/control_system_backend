@@ -31,7 +31,7 @@ class RabbitMQConfig(BaseConfig):
 
     WS_BROADCAST_EXCHANGE: str = Field("ws_broadcast", alias="RABBITMQ_WS_BROADCAST_EXCHANGE")
 
-    PREFETCH_COUNT: int = Field(20, alias="RABBITMQ_PREFETCH_COUNT")
+    PREFETCH_COUNT: int = Field(500, alias="RABBITMQ_PREFETCH_COUNT")
     NO_DATA_CHECK_INTERVAL_SECONDS: int = Field(60, alias="RABBITMQ_NO_DATA_CHECK_INTERVAL_SECONDS")
 
     @property

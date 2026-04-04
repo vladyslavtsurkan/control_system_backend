@@ -4,15 +4,13 @@ from uuid import UUID, uuid4
 from typing import Any
 
 from loguru import logger
-from sqlalchemy.exc import IntegrityError
 
 from app.core.constants import ALERT_RESOLVE_CONSECUTIVE_OK_READINGS
-from app.core.exc import ObjectAlreadyExistsException
 from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.worker.schemas.telemetry import TelemetryReading
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
-from app.worker.common.helpers import is_active_alert_unique_violation, is_update_due, parse_ts
+from app.worker.common.helpers import is_update_due, parse_ts
 from app.worker.generated import telemetry_pb2
 from app.worker.schemas.events import AlertEvent
 
@@ -91,10 +89,8 @@ async def _update_existing_active_alert(
 class AlertLifecycleService:
     def __init__(
         self,
-        sql_uow_factory: type[SQLUnitOfWork] = SQLUnitOfWork,
         rabbitmq_uow_factory: type[RabbitMQUnitOfWork] = RabbitMQUnitOfWork,
     ) -> None:
-        self._sql_uow_factory = sql_uow_factory
         self._rabbitmq_uow_factory = rabbitmq_uow_factory
 
     @staticmethod
@@ -114,14 +110,24 @@ class AlertLifecycleService:
             return True
         return False
 
-    async def _dispatch_actions(self, rule_id: UUID, organization_id: UUID, is_trigger: bool) -> None:
+    async def _dispatch_actions(
+        self,
+        rule_id: UUID,
+        organization_id: UUID,
+        is_trigger: bool,
+        sql_uow: SQLUnitOfWork,
+    ) -> None:
         try:
             action_dispatches: list[tuple[UUID, UUID, Any]] = []
-            async with self._sql_uow_factory(tenant_id=organization_id) as sql_uow:
-                actions = await sql_uow.alert_action.get_multi_without_pagination(rule_id=rule_id)
-                for action in actions:
-                    payload = action.trigger_payload if is_trigger else action.resolve_payload
-                    action_dispatches.append((action.id, action.target_sensor_id, payload))
+
+            actions = await sql_uow.alert_action.get_multi_without_pagination(
+                rule_id=rule_id,
+                organization_id=organization_id,
+            )
+
+            for action in actions:
+                payload = action.trigger_payload if is_trigger else action.resolve_payload
+                action_dispatches.append((action.id, action.target_sensor_id, payload))
 
             if not action_dispatches:
                 return
@@ -203,25 +209,20 @@ class AlertLifecycleService:
                 now=now,
             )
 
-        try:
-            async with uow.session.begin_nested():
-                created = await uow.alert.create(
-                    {
-                        "organization_id": organization_id,
-                        "sensor_id": sensor_id,
-                        "rule_id": rule_id,
-                        "message": message,
-                        "triggered_value": triggered_value,
-                        "is_acknowledged": False,
-                    }
-                )
-        except (IntegrityError, ObjectAlreadyExistsException) as exc:
-            if not is_active_alert_unique_violation(exc):
-                raise
-
+        created = await uow.alert.create_active_if_absent(
+            {
+                "organization_id": organization_id,
+                "sensor_id": sensor_id,
+                "rule_id": rule_id,
+                "message": message,
+                "triggered_value": triggered_value,
+                "is_acknowledged": False,
+            }
+        )
+        if created is None:
             active_alert = await uow.alert.get_active_by_sensor_rule(sensor_id, rule_id)
             if active_alert is None:
-                raise
+                return None
 
             return await _update_existing_active_alert(
                 uow=uow,
@@ -244,7 +245,7 @@ class AlertLifecycleService:
             last_update_sent_at=now,
         )
         if organization_id is not None:
-            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=True)
+            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=True, sql_uow=uow)
         else:
             logger.warning(
                 "Skipping trigger action dispatch: missing organization mapping for sensor={sensor_id}",
@@ -282,7 +283,9 @@ class AlertLifecycleService:
             return None
 
         if organization_id is not None:
-            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=False)
+            await self._dispatch_actions(
+                rule_id=rule_id, organization_id=organization_id, is_trigger=False, sql_uow=uow
+            )
         else:
             logger.warning(
                 "Skipping resolve action dispatch: missing organization mapping for sensor={sensor_id}",
@@ -332,7 +335,9 @@ class AlertLifecycleService:
             return None
 
         if organization_id is not None:
-            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=False)
+            await self._dispatch_actions(
+                rule_id=rule_id, organization_id=organization_id, is_trigger=False, sql_uow=uow
+            )
         else:
             logger.warning(
                 "Skipping resolve action dispatch: missing organization mapping for sensor={sensor_id}",
@@ -380,25 +385,20 @@ class AlertLifecycleService:
                 now=now,
             )
 
-        try:
-            async with uow.session.begin_nested():
-                created = await uow.alert.create(
-                    {
-                        "organization_id": organization_id,
-                        "sensor_id": sensor_id,
-                        "rule_id": rule_id,
-                        "message": message,
-                        "triggered_value": payload,
-                        "is_acknowledged": False,
-                    }
-                )
-        except (IntegrityError, ObjectAlreadyExistsException) as exc:
-            if not is_active_alert_unique_violation(exc):
-                raise
-
+        created = await uow.alert.create_active_if_absent(
+            {
+                "organization_id": organization_id,
+                "sensor_id": sensor_id,
+                "rule_id": rule_id,
+                "message": message,
+                "triggered_value": payload,
+                "is_acknowledged": False,
+            }
+        )
+        if created is None:
             active_alert = await uow.alert.get_active_by_sensor_rule(sensor_id, rule_id)
             if active_alert is None:
-                raise
+                return None
 
             return await _update_existing_active_alert(
                 uow=uow,
@@ -421,7 +421,7 @@ class AlertLifecycleService:
             last_update_sent_at=now,
         )
         if organization_id is not None:
-            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=True)
+            await self._dispatch_actions(rule_id=rule_id, organization_id=organization_id, is_trigger=True, sql_uow=uow)
         else:
             logger.warning(
                 "Skipping trigger action dispatch: missing organization mapping for sensor={sensor_id}",

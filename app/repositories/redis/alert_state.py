@@ -1,21 +1,14 @@
 from datetime import datetime, timezone
-from typing import TypedDict
 from uuid import UUID
 
 from app.core.constants import REDIS_ALERT_STATE_TTL_SECONDS
 from app.repositories.redis.base import BaseRedisRepository
+from app.repositories.redis.types import PendingMutation
 
 __all__ = ["AlertStateRepository"]
 
 ALERT_STATE_KEY = "alert_state:{sensor_id}:{rule_id}"
 ALERT_PENDING_KEY = "alert:pending:{rule_id}:{sensor_id}"
-
-
-class PendingMutation(TypedDict):
-    sensor_id: UUID
-    rule_id: UUID
-    first_spike_ts: float | None
-    ttl_seconds: int | None
 
 
 class AlertStateRepository(BaseRedisRepository):

@@ -1,9 +1,11 @@
+import asyncio
 import time
 
 from faststream import Depends
 from faststream.rabbit import RabbitBroker, RabbitExchange, RabbitQueue, RabbitMessage
 from loguru import logger
 
+from app.core import settings
 from app.worker.services import TelemetrySubscriberService
 
 __all__ = ["register_subscribers"]
@@ -21,10 +23,14 @@ def register_subscribers(
         message: RabbitMessage,
         telemetry_service=Depends(TelemetrySubscriberService),
     ) -> None:
-        time_start = time.perf_counter()
-        await telemetry_service.handle_telemetry_message(message)
-        time_end = time.perf_counter()
-        logger.info(f"Handled telemetry message in {time_end - time_start:.3f} seconds")
+        async with asyncio.Semaphore(settings.worker.CONCURRENCY):
+            time_start = time.perf_counter()
+            await telemetry_service.handle_telemetry_message(message)
+            time_end = time.perf_counter()
+            logger.info(
+                "Handled telemetry message in {duration:.3f} seconds",
+                duration=time_end - time_start,
+            )
 
     @broker.subscriber(control_queue, control_exchange)
     async def handle_control(msg: str, telemetry_service=Depends(TelemetrySubscriberService)) -> None:

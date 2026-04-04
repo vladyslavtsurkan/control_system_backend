@@ -6,6 +6,7 @@ from app.core.config.redis import RedisConfig
 from app.core.config.resend import ResendConfig
 from app.core.config.swagger import SwaggerConfig
 from app.core.config.rabbitmq import RabbitMQConfig
+from app.core.config.worker import WorkerConfig
 
 __all__ = ["Settings", "settings"]
 
@@ -26,6 +27,7 @@ class Settings(BaseConfig):
     resend: ResendConfig = ResendConfig()
     redis: RedisConfig = RedisConfig()
     rabbitmq: RabbitMQConfig = RabbitMQConfig()
+    worker: WorkerConfig = WorkerConfig()
 
 
 settings = Settings()
