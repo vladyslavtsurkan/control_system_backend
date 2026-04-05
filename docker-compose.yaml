@@ -2,7 +2,7 @@ services:
   db:
     image: timescale/timescaledb:2.25.2-pg18
     container_name: timescale_db_control_system
-    command: -p ${POSTGRES_PORT}
+    command: ["postgres", "-p", "${POSTGRES_PORT}", "-c", "synchronous_commit=off"]
     env_file:
       - .env
     volumes:
