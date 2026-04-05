@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.enums import SensorDataTypeEnum
 from app.schemas.base import IdBase, CreatedAtBase
 from app.schemas.reading import ReadingsBucketedResponse
+from app.utils.helpers import validate_opc_ua_node_id
 
 __all__ = [
     "SensorBase",
@@ -28,6 +29,11 @@ class SensorBase(BaseModel):
 class SensorCreateRequest(SensorBase):
     opc_server_id: UUID
 
+    @field_validator("node_id")
+    @classmethod
+    def node_id_validator(cls, v) -> str:
+        return validate_opc_ua_node_id(v)
+
 
 class SensorUpdateRequest(BaseModel):
     name: str | None = Field(None, max_length=255)
@@ -36,6 +42,13 @@ class SensorUpdateRequest(BaseModel):
     data_type: SensorDataTypeEnum | None = None
     units: str | None = Field(None, max_length=50)
     is_writable: bool | None = None
+
+    @field_validator("node_id")
+    @classmethod
+    def node_id_validator(cls, v) -> str | None:
+        if v is None:
+            return v
+        return validate_opc_ua_node_id(v)
 
 
 class SensorControlRequest(BaseModel):

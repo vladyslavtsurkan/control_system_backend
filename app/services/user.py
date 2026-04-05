@@ -22,7 +22,7 @@ from app.services.resend import resend_service
 from app.uow.redis import RedisUnitOfWork
 from app.uow.sql import SQLUnitOfWork
 from app.utils.hash_manager import hash_manager
-from app.utils.utils import generate_code
+from app.utils.helpers import generate_code
 
 
 class UserService:

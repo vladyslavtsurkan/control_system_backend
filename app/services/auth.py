@@ -32,7 +32,7 @@ from app.uow.sql import SQLUnitOfWork
 from app.utils.auth_manager import AuthManager
 from app.utils.hash_manager import hash_manager
 from app.utils.token_manager import jwt_token_manager
-from app.utils.utils import generate_code
+from app.utils.helpers import generate_code
 
 http_bearer = HTTPBearer()
 

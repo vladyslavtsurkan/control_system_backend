@@ -63,7 +63,7 @@ __all__ = [
     "BucketIntervalDep",
 ]
 
-from app.utils.utils import ensure_utc
+from app.utils.helpers import ensure_utc
 
 current_user = Annotated[UserResponse, Depends(AuthService.get_current_user)]
 
