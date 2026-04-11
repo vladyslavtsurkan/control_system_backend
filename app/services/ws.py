@@ -38,7 +38,7 @@ class WsAuthService:
         self,
         websocket: WebSocket,
         ticket: str,
-    ) -> tuple[UserResponse, UUID]:
+    ) -> tuple[UserResponse, UUID] | None:
         """Consume a single-use ticket and return the authenticated user and org.
 
         The ticket is deleted atomically on first use — replay is impossible.
@@ -49,7 +49,7 @@ class WsAuthService:
 
         if payload is None:
             await self._reject(websocket, "invalid or expired ticket")
-            return  # unreachable, but satisfies type checker
+            return None  # unreachable, but satisfies type checker
 
         user_id = UUID(payload["user_id"])
         org_id = UUID(payload["org_id"])
@@ -63,7 +63,7 @@ class WsAuthService:
 
         if user_response is None:
             await self._reject(websocket, f"user {user_id} not found or inactive")
-            return  # unreachable, but satisfies type checker
+            return None  # unreachable, but satisfies type checker
 
         return user_response, org_id
 

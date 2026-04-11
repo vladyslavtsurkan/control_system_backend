@@ -119,8 +119,8 @@ class AlertRuleService(TenantValidationMixin):
                 per_page=limit,
             )
 
+    @staticmethod
     async def get_alert_rule(
-        self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         alert_rule_id: UUID,
