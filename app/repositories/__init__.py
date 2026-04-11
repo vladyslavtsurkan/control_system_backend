@@ -1,3 +1,4 @@
+from app.repositories.audit_log import AuditLogRepository
 from app.repositories.collector_api_key import CollectorApiKeyRepository
 from app.repositories.opc_server import OpcServerRepository
 from app.repositories.organization import OrganizationRepository
@@ -11,6 +12,7 @@ from app.repositories.sensor import (
 from app.repositories.user import UserRepository
 
 __all__ = [
+    "AuditLogRepository",
     "UserRepository",
     "OrganizationRepository",
     "OpcServerRepository",

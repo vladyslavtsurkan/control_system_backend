@@ -125,8 +125,8 @@ async def delete_opc_server(
     await service.delete_opc_server(uow=uow, tenant_id=tenant_id, server_id=server_id, current_user=user)
 
 
-@router.post("/{server_id}/api-key", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_or_rotate_api_key(
+@router.post("/{server_id}/api-keys", response_model=ApiKeyCreateResponse, status_code=status.HTTP_201_CREATED)
+async def create_api_key(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
     server_id: UUID,
@@ -134,12 +134,13 @@ async def create_or_rotate_api_key(
     service: opc_server_service,
 ):
     """
-    Create or rotate the API key for an OPC server.
+    Create a new API key for an OPC server.
 
+    Up to ``MAX_API_KEYS_PER_OPC_SERVER`` keys can be active at the same time.
     Requires X-Tenant-ID header. Only admin/owner.
     The secret key is returned only once in the response.
     """
-    return await service.create_or_rotate_api_key(
+    return await service.create_api_key(
         uow=uow,
         tenant_id=tenant_id,
         server_id=server_id,
@@ -147,22 +148,25 @@ async def create_or_rotate_api_key(
     )
 
 
-@router.delete("/{server_id}/api-key", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{server_id}/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def revoke_api_key(
     uow: TenantUnitOfWorkDep,
     tenant_id: TenantIdDep,
     server_id: UUID,
+    key_id: str,
     user: current_user,
     service: opc_server_service,
 ):
     """
-    Revoke (delete) the API key for an OPC server.
+    Revoke a specific API key for an OPC server.
 
+    ``key_id`` is the ``key_id`` value returned when the key was created.
     Requires X-Tenant-ID header. Only admin/owner.
     """
     await service.revoke_api_key(
         uow=uow,
         tenant_id=tenant_id,
         server_id=server_id,
+        key_id=key_id,
         current_user=user,
     )

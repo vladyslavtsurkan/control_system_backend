@@ -15,6 +15,7 @@ from app.core.exc import (
     RoleAlreadyAssignedException,
 )
 from app.enums import UserRoleInOrgEnum
+from app.enums.audit_log import AuditActionEnum, AuditResourceTypeEnum
 from app.schemas.base import PaginatedResponse
 from app.schemas.organization import (
     ChangeRoleRequest,
@@ -24,6 +25,7 @@ from app.schemas.organization import (
     OrganizationWithRoleResponse,
 )
 from app.schemas.user import UserResponse
+from app.services.audit_log import AuditLogService
 from app.uow.sql import SQLUnitOfWork
 
 
@@ -42,6 +44,15 @@ class OrganizationService:
                 user_id=current_user.id,
                 organization_id=organization.id,
                 role=UserRoleInOrgEnum.owner,
+            )
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization.id,
+                actor=current_user,
+                action=AuditActionEnum.created,
+                resource_type=AuditResourceTypeEnum.organization,
+                resource_id=organization.id,
+                resource_name=organization.name,
             )
             logger.info(f"Organization created: {organization.name} by user: {current_user.email}")
             return OrganizationWithRoleResponse(
@@ -112,13 +123,24 @@ class OrganizationService:
         async with uow:
             role = await self._check_access(uow, current_user.id, organization_id)
 
+            updates = request.model_dump(exclude_unset=True)
             organization = await uow.organization.update(
                 filters={"id": organization_id, "is_deleted": False},
-                updates=request.model_dump(exclude_unset=True),
+                updates=updates,
             )
             if not organization:
                 raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
 
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization_id,
+                actor=current_user,
+                action=AuditActionEnum.updated,
+                resource_type=AuditResourceTypeEnum.organization,
+                resource_id=organization_id,
+                resource_name=organization.name,
+                metadata={"updates": updates},
+            )
             logger.info(f"Organization updated: {organization.name} by user: {current_user.email}")
             return OrganizationWithRoleResponse(
                 id=organization.id,
@@ -139,10 +161,18 @@ class OrganizationService:
             if not organization:
                 raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
 
-            # Soft delete using the SoftDeleteMixin
             await uow.organization.update(
                 filters={"id": organization_id},
                 updates={"is_deleted": True},
+            )
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization_id,
+                actor=current_user,
+                action=AuditActionEnum.deleted,
+                resource_type=AuditResourceTypeEnum.organization,
+                resource_id=organization_id,
+                resource_name=organization.name,
             )
             logger.info(f"Organization deleted: {organization.name} by user: {current_user.email}")
 
@@ -205,6 +235,16 @@ class OrganizationService:
             await uow.organization.add_user_to_organization(
                 user_id=user_id, organization_id=organization_id, role=UserRoleInOrgEnum.member
             )
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization_id,
+                actor=current_user,
+                action=AuditActionEnum.member_added,
+                resource_type=AuditResourceTypeEnum.member,
+                resource_id=user_id,
+                resource_name=target_user.email,
+                metadata={"role": UserRoleInOrgEnum.member},
+            )
             logger.info(f"User {user_id} added to organization {organization_id} by {current_user.email}")
 
     async def remove_user_from_organization(
@@ -235,6 +275,15 @@ class OrganizationService:
                 raise AdminCanOnlyRemoveMembersException
 
             await uow.organization.remove_user_from_organization(user_id=user_id, organization_id=organization_id)
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization_id,
+                actor=current_user,
+                action=AuditActionEnum.member_removed,
+                resource_type=AuditResourceTypeEnum.member,
+                resource_id=user_id,
+                metadata={"removed_role": str(target_role)},
+            )
             logger.info(f"User {user_id} removed from organization {organization_id} by {current_user.email}")
 
     async def leave_organization(
@@ -253,6 +302,14 @@ class OrganizationService:
 
             await uow.organization.remove_user_from_organization(
                 user_id=current_user.id, organization_id=organization_id
+            )
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=organization_id,
+                actor=current_user,
+                action=AuditActionEnum.member_left,
+                resource_type=AuditResourceTypeEnum.member,
+                resource_id=current_user.id,
             )
             logger.info(f"User {current_user.email} left organization {organization_id}")
 
@@ -292,6 +349,19 @@ class OrganizationService:
                 await uow.organization.update_user_role(
                     user_id=current_user.id, organization_id=organization_id, role=UserRoleInOrgEnum.admin
                 )
+                await AuditLogService.log(
+                    uow=uow,
+                    organization_id=organization_id,
+                    actor=current_user,
+                    action=AuditActionEnum.role_changed,
+                    resource_type=AuditResourceTypeEnum.member,
+                    resource_id=user_id,
+                    metadata={
+                        "old_role": str(target_role),
+                        "new_role": str(UserRoleInOrgEnum.owner),
+                        "ownership_transferred": True,
+                    },
+                )
                 logger.info(
                     f"Ownership of organization {organization_id} transferred "
                     f"from {current_user.email} to user {user_id}"
@@ -299,6 +369,15 @@ class OrganizationService:
             else:
                 await uow.organization.update_user_role(
                     user_id=user_id, organization_id=organization_id, role=request.role
+                )
+                await AuditLogService.log(
+                    uow=uow,
+                    organization_id=organization_id,
+                    actor=current_user,
+                    action=AuditActionEnum.role_changed,
+                    resource_type=AuditResourceTypeEnum.member,
+                    resource_id=user_id,
+                    metadata={"old_role": str(target_role), "new_role": str(request.role)},
                 )
                 logger.info(
                     f"User {user_id} role changed to {request.role} in organization "

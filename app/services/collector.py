@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 
-from app.core.constants import API_KEY_PREFIX
 from app.core.exc import NotAuthorizedException
 from app.schemas.collector import CollectorConfigResponse, CollectorSensorResponse
 from app.uow.sql import SQLUnitOfWork
@@ -12,26 +11,18 @@ __all__ = ["CollectorService"]
 
 class CollectorService:
     @staticmethod
-    async def get_config(uow: SQLUnitOfWork, api_key: str) -> CollectorConfigResponse:
+    async def get_config(uow: SQLUnitOfWork, api_key_id: str, api_key_secret: str) -> CollectorConfigResponse:
         """
-        Authenticate the collector by X-API-Key and return the full
-        OPC-server configuration together with its active sensors.
+        Authenticate the collector by X-API-Key-ID / X-API-Key-Secret headers and
+        return the full OPC-server configuration together with its active sensors.
 
-        The key_prefix stored in the DB has the form ``API_KEY_PREFIX``
-        (first 8 characters of the random part + ``...``).  We derive the
-        same prefix from the incoming key so we can locate the single
-        matching row before running the expensive Argon2 verification.
+        Lookup is done by the cheap key_id index first; the expensive Argon2
+        verification runs only if a matching row is found.
         """
-        if not api_key.startswith(API_KEY_PREFIX):
-            raise NotAuthorizedException
-
-        raw_part = api_key[len(API_KEY_PREFIX) :]
-        key_prefix = f"{API_KEY_PREFIX}{raw_part[:8]}..."
-
         async with uow:
-            record = await uow.collector_api_key.get_by_prefix_with_server_and_sensors(key_prefix)
+            record = await uow.collector_api_key.get_by_key_id_with_server_and_sensors(api_key_id)
 
-            if record is None or not api_key_manager.verify(api_key, record.hashed_key):
+            if record is None or not api_key_manager.verify(api_key_secret, record.hashed_key):
                 raise NotAuthorizedException
 
             # Update last_used_at

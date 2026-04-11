@@ -7,6 +7,7 @@ from app.models.alert_rule import AlertRule
 from app.models.alert_action import AlertAction
 from app.models.alert import Alert
 from app.models.collector_api_key import CollectorApiKey
+from app.models.audit_log import AuditLog
 from app.models.base import TenantMixin
 
 __all__ = [
@@ -20,5 +21,6 @@ __all__ = [
     "AlertAction",
     "Alert",
     "CollectorApiKey",
+    "AuditLog",
     "TenantMixin",
 ]

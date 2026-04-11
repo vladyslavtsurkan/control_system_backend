@@ -53,8 +53,8 @@ class OpcServerResponse(IdBase, CreatedAtBase):
 
 
 class ApiKeyCreateResponse(BaseModel):
-    key_prefix: str
-    secret_key: str = Field(..., description="The full API key. Shown only once.")
+    key_id: str = Field(..., description="Public API key identifier. Send as X-API-Key-ID header.")
+    secret_key: str = Field(..., description="The API key secret. Shown only once. Send as X-API-Key-Secret header.")
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -62,7 +62,7 @@ class ApiKeyCreateResponse(BaseModel):
 
 class ApiKeyInfoResponse(IdBase, CreatedAtBase):
     opc_server_id: UUID
-    key_prefix: str
+    key_id: str
     last_used_at: datetime | None
     updated_at: datetime
 

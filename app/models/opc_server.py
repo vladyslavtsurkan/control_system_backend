@@ -25,7 +25,7 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
 
     organization = relationship("Organization", back_populates="opc_servers", lazy="subquery")
     sensors = relationship("Sensor", back_populates="opc_server", cascade="all, delete-orphan", lazy="subquery")
-    api_key = relationship("CollectorApiKey", back_populates="opc_server", uselist=False, cascade="all, delete-orphan")
+    api_keys = relationship("CollectorApiKey", back_populates="opc_server", uselist=True, cascade="all, delete-orphan")
 
     __table_args__ = (
         Index(

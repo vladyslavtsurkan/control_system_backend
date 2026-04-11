@@ -19,6 +19,7 @@ from app.core.constants import (
 from app.schemas import UserResponse
 from app.services import (
     AlertRuleService,
+    AuditLogService,
     AuthService,
     CollectorService,
     UserService,
@@ -44,6 +45,7 @@ __all__ = [
     "reading_service",
     "alert_service",
     "alert_rule_service",
+    "audit_log_service",
     "ws_auth_service",
     "offset_query",
     "limit_query_default",
@@ -76,6 +78,7 @@ sensor_service = Annotated[SensorService, Depends(SensorService)]
 reading_service = Annotated[ReadingService, Depends(ReadingService)]
 alert_service = Annotated[AlertService, Depends(AlertService)]
 alert_rule_service = Annotated[AlertRuleService, Depends(AlertRuleService)]
+audit_log_service = Annotated[AuditLogService, Depends(AuditLogService)]
 tenant_service = Annotated[TenantService, Depends(TenantService)]
 ws_auth_service = Annotated[WsAuthService, Depends(WsAuthService)]
 

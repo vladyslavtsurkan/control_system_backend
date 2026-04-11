@@ -3,6 +3,7 @@ from uuid import UUID
 from app.core.constants import PAGINATION_PER_PAGE
 from app.core.exc import ObjectNotFoundException, BadRequestException
 from app.enums import AlertConditionEnum, SensorDataTypeEnum
+from app.enums.audit_log import AuditActionEnum, AuditResourceTypeEnum
 from app.schemas.alert_rule import (
     AlertActionCreateRequest,
     AlertRuleCreateRequest,
@@ -11,6 +12,7 @@ from app.schemas.alert_rule import (
 )
 from app.schemas.base import PaginatedResponse
 from app.schemas.user import UserResponse
+from app.services.audit_log import AuditLogService
 from app.services.mixins import TenantValidationMixin
 from app.uow.redis import RedisUnitOfWork
 from app.uow.rabbitmq import RabbitMQUnitOfWork
@@ -75,6 +77,16 @@ class AlertRuleService(TenantValidationMixin):
             created_alert_rule_id = alert_rule.id
             alert_rule_full = await uow.alert_rule.get_for_tenant_by_id(created_alert_rule_id, tenant_id)
             result = AlertRuleResponse.model_validate(alert_rule_full or alert_rule)
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.created,
+                resource_type=AuditResourceTypeEnum.alert_rule,
+                resource_id=created_alert_rule_id,
+                resource_name=alert_rule.name,
+                metadata={"sensor_id": str(request.sensor_id)},
+            )
 
         async with RedisUnitOfWork() as redis_uow:
             await redis_uow.alert_state.clear_by_rule(created_alert_rule_id)
@@ -164,6 +176,16 @@ class AlertRuleService(TenantValidationMixin):
             if not refreshed:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
             result = AlertRuleResponse.model_validate(refreshed)
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.updated,
+                resource_type=AuditResourceTypeEnum.alert_rule,
+                resource_id=alert_rule_id,
+                resource_name=alert_rule.name,
+                metadata={"updates": {k: v for k, v in updates.items()}},
+            )
 
         async with RedisUnitOfWork() as redis_uow:
             await redis_uow.alert_state.clear_by_rule(alert_rule_id)
@@ -186,6 +208,15 @@ class AlertRuleService(TenantValidationMixin):
             if not alert_rule:
                 raise ObjectNotFoundException(str(alert_rule_id), "AlertRule")
             await uow.alert_rule.delete(filters={"id": alert_rule_id})
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.deleted,
+                resource_type=AuditResourceTypeEnum.alert_rule,
+                resource_id=alert_rule_id,
+                resource_name=alert_rule.name,
+            )
 
         async with RedisUnitOfWork() as redis_uow:
             await redis_uow.alert_state.clear_by_rule(alert_rule_id)

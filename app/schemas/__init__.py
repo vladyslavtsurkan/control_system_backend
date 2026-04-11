@@ -57,6 +57,7 @@ from app.schemas.alert_rule import (
     AlertRuleBriefResponse,
     AlertRuleResponse,
 )
+from app.schemas.audit_log import AuditLogResponse
 from app.schemas.collector import (
     CollectorSensorResponse,
     CollectorConfigResponse,
@@ -124,4 +125,6 @@ __all__ = [
     # Collector
     "CollectorSensorResponse",
     "CollectorConfigResponse",
+    # Audit Log
+    "AuditLogResponse",
 ]

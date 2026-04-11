@@ -52,8 +52,9 @@ SENSOR_PREFETCH_MAX_WINDOW_MINUTES = 180
 SERVICE_INTERNAL_FETCH_LIMIT = 10000
 
 # API key settings
+API_KEY_ID_BYTES = 16
 API_KEY_LENGTH = 40
-API_KEY_PREFIX = "sk_live_"
+MAX_API_KEYS_PER_OPC_SERVER = 2  # Maximum number of API keys allowed per OPC server
 
 # Hashing settings for CollectorHasher
 COLLECTOR_HASHER_TIME_COST = 1

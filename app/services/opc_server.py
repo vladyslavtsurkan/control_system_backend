@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from app.core.constants import PAGINATION_PER_PAGE
-from app.core.exc import ObjectNotFoundException
+from app.core.constants import PAGINATION_PER_PAGE, MAX_API_KEYS_PER_OPC_SERVER
+from app.core.exc import ObjectNotFoundException, BadRequestException
+from app.enums.audit_log import AuditActionEnum, AuditResourceTypeEnum
 from app.schemas.base import PaginatedResponse
 from app.schemas.opc_server import (
     OpcServerCreateRequest,
@@ -11,6 +12,7 @@ from app.schemas.opc_server import (
     ApiKeyInfoResponse,
 )
 from app.schemas.user import UserResponse
+from app.services.audit_log import AuditLogService
 from app.services.mixins import TenantValidationMixin
 from app.uow.sql import SQLUnitOfWork
 from app.utils.api_key_manager import api_key_manager
@@ -46,6 +48,15 @@ class OpcServerService(TenantValidationMixin):
                 data["encrypted_password"] = crypto_manager.encrypt(request.password)
 
             opc_server = await uow.opc_server.create(data)
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.created,
+                resource_type=AuditResourceTypeEnum.opc_server,
+                resource_id=opc_server.id,
+                resource_name=opc_server.name,
+            )
             return OpcServerResponse.model_validate(opc_server)
 
     @staticmethod
@@ -122,6 +133,16 @@ class OpcServerService(TenantValidationMixin):
             )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.updated,
+                resource_type=AuditResourceTypeEnum.opc_server,
+                resource_id=server_id,
+                resource_name=server.name,
+                metadata={"updates": {k: v for k, v in updates.items() if k != "encrypted_password"}},
+            )
             return OpcServerResponse.model_validate(server)
 
     async def delete_opc_server(
@@ -141,34 +162,62 @@ class OpcServerService(TenantValidationMixin):
             )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.deleted,
+                resource_type=AuditResourceTypeEnum.opc_server,
+                resource_id=server_id,
+                resource_name=server.name,
+            )
 
-    async def create_or_rotate_api_key(
+    async def create_api_key(
         self,
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         server_id: UUID,
         current_user: UserResponse,
     ) -> ApiKeyCreateResponse:
-        """Create or rotate an API key for an OPC server. Only admin/owner."""
+        """
+        Create a new API key for an OPC server. Only admin/owner.
+
+        Raises BadRequestException if MAX_API_KEYS_PER_OPC_SERVER is already reached.
+        The returned secret_key is shown only once and is not stored in plain text.
+        """
         async with uow:
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
             await self._get_opc_server_or_404(uow, server_id, tenant_id)
 
-            full_key, key_prefix, hashed_key = api_key_manager.generate()
+            current_count = await uow.collector_api_key.count_by_opc_server_id(server_id)
+            if current_count >= MAX_API_KEYS_PER_OPC_SERVER:
+                raise BadRequestException(
+                    message=f"OPC server already has the maximum of {MAX_API_KEYS_PER_OPC_SERVER} API keys. "
+                    f"Revoke an existing key before creating a new one.",
+                )
 
-            record = await uow.collector_api_key.create_or_update(
-                obj_in={
+            key_id, secret_key, hashed_secret = api_key_manager.generate()
+
+            record = await uow.collector_api_key.create(
+                {
                     "organization_id": tenant_id,
                     "opc_server_id": server_id,
-                    "key_prefix": key_prefix,
-                    "hashed_key": hashed_key,
-                },
-                conflict_columns=["opc_server_id"],
-                update_columns=["key_prefix", "hashed_key", "organization_id"],
+                    "key_id": key_id,
+                    "hashed_key": hashed_secret,
+                }
+            )
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.api_key_created,
+                resource_type=AuditResourceTypeEnum.api_key,
+                resource_name=key_id,
+                metadata={"opc_server_id": str(server_id)},
             )
             return ApiKeyCreateResponse(
-                key_prefix=key_prefix,
-                secret_key=full_key,
+                key_id=key_id,
+                secret_key=secret_key,
                 created_at=record.created_at,
             )
 
@@ -177,15 +226,25 @@ class OpcServerService(TenantValidationMixin):
         uow: SQLUnitOfWork,
         tenant_id: UUID,
         server_id: UUID,
+        key_id: str,
         current_user: UserResponse,
     ) -> None:
-        """Revoke (delete) the API key for an OPC server. Only admin/owner."""
+        """Revoke a specific API key for an OPC server by key_id. Only admin/owner."""
         async with uow:
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
             await self._get_opc_server_or_404(uow, server_id, tenant_id)
 
-            existing = await uow.collector_api_key.get_by_opc_server_id(server_id)
+            existing = await uow.collector_api_key.get(filters={"key_id": key_id, "opc_server_id": server_id})
             if not existing:
-                raise ObjectNotFoundException(str(server_id), "CollectorApiKey")
+                raise ObjectNotFoundException(key_id, "CollectorApiKey")
 
-            await uow.collector_api_key.delete(filters={"opc_server_id": server_id})
+            await uow.collector_api_key.delete(filters={"id": existing.id})
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.api_key_revoked,
+                resource_type=AuditResourceTypeEnum.api_key,
+                resource_name=key_id,
+                metadata={"opc_server_id": str(server_id)},
+            )

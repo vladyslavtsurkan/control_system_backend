@@ -5,6 +5,7 @@ from loguru import logger
 
 from app.infra.database import get_session_maker, set_tenant_context, set_rls_bypass
 from app.repositories import (
+    AuditLogRepository,
     OpcServerRepository,
     OrganizationRepository,
     CollectorApiKeyRepository,
@@ -52,6 +53,7 @@ class SQLUnitOfWork(ABCUnitOfWork):
         self.alert_rule = AlertRuleRepository(session=self.session)
         self.alert_action = AlertActionRepository(session=self.session)
         self.alert = AlertRepository(session=self.session)
+        self.audit_log = AuditLogRepository(session=self.session)
         return self
 
     async def __aexit__(self, exc_type: any, exc: any, tb: any) -> None:

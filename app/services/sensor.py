@@ -9,6 +9,7 @@ from app.core.constants import (
     SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
 )
 from app.core.exc import ObjectNotFoundException
+from app.enums.audit_log import AuditActionEnum, AuditResourceTypeEnum
 from app.schemas.base import PaginatedResponse
 from app.schemas.sensor import (
     SensorCreateRequest,
@@ -19,6 +20,7 @@ from app.schemas.sensor import (
 )
 from app.schemas.reading import ReadingsBucket, ReadingsBucketedResponse
 from app.schemas.user import UserResponse
+from app.services.audit_log import AuditLogService
 from app.services.mixins import TenantValidationMixin
 from app.uow.rabbitmq import RabbitMQUnitOfWork
 from app.uow.sql import SQLUnitOfWork
@@ -53,6 +55,16 @@ class SensorService(TenantValidationMixin):
             data = request.model_dump()
             data["organization_id"] = tenant_id
             sensor = await uow.sensor.create(data)
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.created,
+                resource_type=AuditResourceTypeEnum.sensor,
+                resource_id=sensor.id,
+                resource_name=sensor.name,
+                metadata={"opc_server_id": str(request.opc_server_id)},
+            )
             return SensorResponse.model_validate(sensor)
 
     @staticmethod
@@ -158,6 +170,16 @@ class SensorService(TenantValidationMixin):
             )
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.updated,
+                resource_type=AuditResourceTypeEnum.sensor,
+                resource_id=sensor_id,
+                resource_name=sensor.name,
+                metadata={"updates": updates},
+            )
             return SensorResponse.model_validate(sensor)
 
     async def delete_sensor(
@@ -178,6 +200,15 @@ class SensorService(TenantValidationMixin):
             )
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.deleted,
+                resource_type=AuditResourceTypeEnum.sensor,
+                resource_id=sensor_id,
+                resource_name=sensor.name,
+            )
 
     async def send_control_command(
         self,
@@ -188,6 +219,8 @@ class SensorService(TenantValidationMixin):
         current_user: UserResponse,
     ) -> dict[str, str]:
         """Send a tenant-scoped control command to the edge for a sensor."""
+        command_id = uuid4()
+
         async with uow:
             await self._validate_active_organization(uow, tenant_id)
 
@@ -195,12 +228,21 @@ class SensorService(TenantValidationMixin):
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
 
-            # Tenant identity comes from X-Tenant-ID; users can belong to multiple orgs.
             sensor_for_tenant = await self._get_active_sensor_for_tenant(uow, sensor_id=sensor_id, tenant_id=tenant_id)
             if not sensor_for_tenant:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
 
-        command_id = uuid4()
+            await AuditLogService.log(
+                uow=uow,
+                organization_id=tenant_id,
+                actor=current_user,
+                action=AuditActionEnum.control_command_sent,
+                resource_type=AuditResourceTypeEnum.sensor,
+                resource_id=sensor_id,
+                resource_name=sensor.name,
+                metadata={"command_id": str(command_id), "value": str(command_req.value)},
+            )
+
         cmd = telemetry_pb2.ControlCommand(  # type: ignore[attr-defined]
             command_id=str(command_id),
             sensor_id=str(sensor_id),
