@@ -8,7 +8,7 @@ from app.core.constants import (
     READINGS_BUCKET_INTERVAL_TO_TIMEDELTA,
     SENSOR_PREFETCH_DEFAULT_WINDOW_MINUTES,
 )
-from app.core.exc import ObjectNotFoundException
+from app.core.exc import ObjectNotFoundException, SensorIsNotWritableException
 from app.enums.audit_log import AuditActionEnum, AuditResourceTypeEnum
 from app.schemas.base import PaginatedResponse
 from app.schemas.sensor import (
@@ -223,6 +223,7 @@ class SensorService(TenantValidationMixin):
 
         async with uow:
             await self._validate_active_organization(uow, tenant_id)
+            await self._check_admin_or_owner(uow, current_user.id, tenant_id)
 
             sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
             if not sensor:
@@ -231,6 +232,9 @@ class SensorService(TenantValidationMixin):
             sensor_for_tenant = await self._get_active_sensor_for_tenant(uow, sensor_id=sensor_id, tenant_id=tenant_id)
             if not sensor_for_tenant:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
+
+            if not sensor_for_tenant.is_writable:
+                raise SensorIsNotWritableException(sensor_id)
 
             await AuditLogService.log(
                 uow=uow,

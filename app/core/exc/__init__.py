@@ -1,4 +1,4 @@
-from app.core.exc.base.exceptions import (
+from app.core.exc.base import (
     ObjectNotFoundException,
     ObjectAlreadyExistsException,
     GoneException,
@@ -6,7 +6,7 @@ from app.core.exc.base.exceptions import (
     ForbiddenException,
     BadRequestException,
 )
-from app.core.exc.auth.exceptions import (
+from app.core.exc.auth import (
     UserAlreadyExistsException,
     VerificationCodeAlreadySentException,
     VerificationFailedOrExpiredException,
@@ -32,6 +32,7 @@ from app.core.exc.organization import (
     CannotChangeOwnRoleException,
     RoleAlreadyAssignedException,
 )
+from app.core.exc.sensor import SensorIsNotWritableException
 
 __all__ = [
     "ObjectNotFoundException",
@@ -60,4 +61,5 @@ __all__ = [
     "OwnerCannotLeaveException",
     "CannotChangeOwnRoleException",
     "RoleAlreadyAssignedException",
+    "SensorIsNotWritableException",
 ]

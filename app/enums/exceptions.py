@@ -35,3 +35,6 @@ class MessageException(BaseStrEnum):
     tenant_id_required = "tenant_id_required"
     invalid_tenant_id_format = "invalid_tenant_id_format"
     tenant_access_denied = "tenant_access_denied"
+
+    # Sensor exceptions
+    sensor_is_not_writable = "sensor_is_not_writable"
