@@ -24,10 +24,10 @@ class SensorRepository(BaseRepository[Sensor]):
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
                 Sensor.id == sensor_id,
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         return (await self._session.execute(stmt)).scalars().first()
@@ -45,10 +45,10 @@ class SensorRepository(BaseRepository[Sensor]):
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
             .offset(offset)
             .limit(limit)
@@ -74,9 +74,9 @@ class SensorRepository(BaseRepository[Sensor]):
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
-                Sensor.is_deleted.is_(False),
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         result = await self._session.execute(stmt)
@@ -185,10 +185,10 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
                 AlertRule.id == alert_rule_id,
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         return (await self._session.execute(stmt)).scalars().first()
@@ -208,10 +208,10 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
             .offset(offset)
             .limit(limit)
@@ -243,9 +243,9 @@ class AlertRuleRepository(BaseRepository[AlertRule]):
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
                 AlertRule.is_active.is_(True),
-                Sensor.is_deleted.is_(False),
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         result = await self._session.execute(stmt)
@@ -281,10 +281,10 @@ class AlertRepository(BaseRepository[Alert]):
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
                 Alert.id == alert_id,
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         return (await self._session.execute(stmt)).scalars().first()
@@ -304,10 +304,10 @@ class AlertRepository(BaseRepository[Alert]):
             .join(OpcServer, Sensor.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
-                Sensor.is_deleted.is_(False),
+                Sensor.deleted_at.is_(None),
                 OpcServer.organization_id == tenant_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
             .offset(offset)
             .limit(limit)

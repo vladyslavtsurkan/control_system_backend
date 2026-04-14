@@ -14,7 +14,7 @@ class TenantValidationMixin:
 
     @staticmethod
     async def _is_active_organization(uow: SQLUnitOfWork, organization_id: UUID) -> bool:
-        organization = await uow.organization.get(filters={"id": organization_id, "is_deleted": False})
+        organization = await uow.organization.get(filters={"id": organization_id, "deleted_at": None})
         return organization is not None
 
     @staticmethod

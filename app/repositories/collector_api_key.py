@@ -36,8 +36,8 @@ class CollectorApiKeyRepository(BaseRepository[CollectorApiKey]):
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(
                 OpcServer.organization_id == organization_id,
-                OpcServer.is_deleted.is_(False),
-                Organization.is_deleted.is_(False),
+                OpcServer.deleted_at.is_(None),
+                Organization.deleted_at.is_(None),
             )
         )
         result = await self._session.execute(query)
@@ -53,10 +53,10 @@ class CollectorApiKeyRepository(BaseRepository[CollectorApiKey]):
             .join(OpcServer, CollectorApiKey.opc_server_id == OpcServer.id)
             .join(Organization, OpcServer.organization_id == Organization.id)
             .where(CollectorApiKey.key_id == key_id)
-            .where(OpcServer.is_deleted.is_(False), Organization.is_deleted.is_(False))
+            .where(OpcServer.deleted_at.is_(None), Organization.deleted_at.is_(None))
             .options(
                 joinedload(CollectorApiKey.opc_server).selectinload(
-                    OpcServer.sensors.and_(Sensor.is_deleted.is_(False))
+                    OpcServer.sensors.and_(Sensor.deleted_at.is_(None))
                 ),
             )
         )

@@ -21,6 +21,6 @@ class Organization(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
         Index(
             "idx_organizations_active",
             "id",
-            postgresql_where=text("NOT is_deleted"),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )

@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select, and_, Row, func
+from sqlalchemy import select, and_, Row, func, delete, update
 
 from app.core.constants import PAGINATION_PER_PAGE
 from app.enums import UserRoleInOrgEnum
@@ -20,7 +20,7 @@ class OrganizationRepository(BaseRepository[Organization]):
     ) -> tuple[UserRoleInOrgEnum | None, bool]:
         """Return ``(role, is_active_org)`` for a user and organization in one query."""
         query = (
-            select(UserOrganizationAssociation.role, Organization.is_deleted)
+            select(UserOrganizationAssociation.role, Organization.deleted_at)
             .select_from(Organization)
             .outerjoin(
                 UserOrganizationAssociation,
@@ -34,8 +34,8 @@ class OrganizationRepository(BaseRepository[Organization]):
         row = (await self._session.execute(query)).first()
         if not row:
             return None, False
-        role, is_deleted = row
-        return role, not is_deleted
+        role, deleted_at = row
+        return role, deleted_at is None
 
     async def get_user_organizations(
         self, user_id: uuid.UUID, offset: int = 0, limit: int = PAGINATION_PER_PAGE
@@ -47,7 +47,7 @@ class OrganizationRepository(BaseRepository[Organization]):
             .where(
                 and_(
                     UserOrganizationAssociation.user_id == user_id,
-                    Organization.is_deleted.is_(False),
+                    Organization.deleted_at.is_(None),
                 )
             )
             .offset(offset)
@@ -93,16 +93,13 @@ class OrganizationRepository(BaseRepository[Organization]):
 
     async def remove_user_from_organization(self, user_id: uuid.UUID, organization_id: uuid.UUID) -> None:
         """Remove a user from an organization."""
-        query = select(UserOrganizationAssociation).where(
+        stmt = delete(UserOrganizationAssociation).where(
             and_(
                 UserOrganizationAssociation.user_id == user_id,
                 UserOrganizationAssociation.organization_id == organization_id,
             )
         )
-        result = await self._session.execute(query)
-        association = result.scalar_one_or_none()
-        if association:
-            await self._session.delete(association)
+        await self._session.execute(stmt)
 
     async def get_organization_members(
         self, organization_id: uuid.UUID, offset: int = 0, limit: int = PAGINATION_PER_PAGE
@@ -131,14 +128,16 @@ class OrganizationRepository(BaseRepository[Organization]):
         self, user_id: uuid.UUID, organization_id: uuid.UUID, role: UserRoleInOrgEnum
     ) -> UserOrganizationAssociation | None:
         """Update a user's role in an organization."""
-        query = select(UserOrganizationAssociation).where(
-            and_(
-                UserOrganizationAssociation.user_id == user_id,
-                UserOrganizationAssociation.organization_id == organization_id,
+        stmt = (
+            update(UserOrganizationAssociation)
+            .where(
+                and_(
+                    UserOrganizationAssociation.user_id == user_id,
+                    UserOrganizationAssociation.organization_id == organization_id,
+                )
             )
+            .values(role=role)
+            .returning(UserOrganizationAssociation)
         )
-        result = await self._session.execute(query)
-        association = result.scalar_one_or_none()
-        if association:
-            association.role = role
-        return association
+        result = await self._session.execute(stmt)
+        return result.scalars().first()

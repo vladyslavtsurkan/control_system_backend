@@ -47,7 +47,7 @@ class SensorService(TenantValidationMixin):
 
             # Validate the OPC server belongs to the tenant
             opc_server = await uow.opc_server.get(
-                filters={"id": request.opc_server_id, "is_deleted": False, "organization_id": tenant_id}
+                filters={"id": request.opc_server_id, "deleted_at": None, "organization_id": tenant_id}
             )
             if not opc_server:
                 raise ObjectNotFoundException(str(request.opc_server_id), "OpcServer")
@@ -165,7 +165,7 @@ class SensorService(TenantValidationMixin):
 
             updates = request.model_dump(exclude_unset=True)
             sensor = await uow.sensor.update(
-                filters={"id": sensor_id, "is_deleted": False},
+                filters={"id": sensor_id, "deleted_at": None},
                 updates=updates,
             )
             if not sensor:
@@ -195,8 +195,8 @@ class SensorService(TenantValidationMixin):
             await self._validate_sensor_tenant(uow, sensor_id, tenant_id)
 
             sensor = await uow.sensor.update(
-                filters={"id": sensor_id, "is_deleted": False},
-                updates={"is_deleted": True},
+                filters={"id": sensor_id, "deleted_at": None},
+                updates={"deleted_at": datetime.datetime.now(datetime.UTC)},
             )
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
@@ -225,7 +225,7 @@ class SensorService(TenantValidationMixin):
             await self._validate_active_organization(uow, tenant_id)
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
 
-            sensor = await uow.sensor.get(filters={"id": sensor_id, "is_deleted": False})
+            sensor = await uow.sensor.get(filters={"id": sensor_id, "deleted_at": None})
             if not sensor:
                 raise ObjectNotFoundException(str(sensor_id), "Sensor")
 

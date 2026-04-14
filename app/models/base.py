@@ -8,6 +8,7 @@ from sqlalchemy import Boolean, DateTime, String, func, text, ForeignKey
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
+
 __all__ = [
     "Base",
     "UUIDMixin",
@@ -38,7 +39,7 @@ class TimestampMixin(CreatedAtMixin, UpdatedAtMixin):
 
 
 class SoftDeleteMixin:
-    is_deleted: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
 
 class UUIDMixin:

@@ -33,6 +33,6 @@ class OpcServer(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin, TenantMixin):
             "organization_id",
             "name",
             unique=True,
-            postgresql_where=text("NOT is_deleted"),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )

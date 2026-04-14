@@ -1,4 +1,5 @@
 from uuid import UUID
+import datetime
 
 from app.core.constants import PAGINATION_PER_PAGE, MAX_API_KEYS_PER_OPC_SERVER
 from app.core.exc import ObjectNotFoundException, BadRequestException
@@ -25,7 +26,7 @@ class OpcServerService(TenantValidationMixin):
     @staticmethod
     async def _get_opc_server_or_404(uow: SQLUnitOfWork, server_id: UUID, tenant_id: UUID):
         """Get an OPC server or raise 404."""
-        server = await uow.opc_server.get(filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id})
+        server = await uow.opc_server.get(filters={"id": server_id, "deleted_at": None, "organization_id": tenant_id})
         if not server:
             raise ObjectNotFoundException(str(server_id), "OpcServer")
         return server
@@ -71,7 +72,7 @@ class OpcServerService(TenantValidationMixin):
             servers, count = await uow.opc_server.get_multi(
                 offset=offset,
                 limit=limit,
-                is_deleted=False,
+                deleted_at=None,
                 organization_id=tenant_id,
             )
             return PaginatedResponse(
@@ -89,7 +90,7 @@ class OpcServerService(TenantValidationMixin):
         """Get a specific OPC server by ID."""
         async with uow:
             server = await uow.opc_server.get(
-                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id}
+                filters={"id": server_id, "deleted_at": None, "organization_id": tenant_id}
             )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")
@@ -128,7 +129,7 @@ class OpcServerService(TenantValidationMixin):
                 updates["encrypted_password"] = crypto_manager.encrypt(request.password)
 
             server = await uow.opc_server.update(
-                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
+                filters={"id": server_id, "deleted_at": None, "organization_id": tenant_id},
                 updates=updates,
             )
             if not server:
@@ -157,8 +158,8 @@ class OpcServerService(TenantValidationMixin):
             await self._check_admin_or_owner(uow, current_user.id, tenant_id)
 
             server = await uow.opc_server.update(
-                filters={"id": server_id, "is_deleted": False, "organization_id": tenant_id},
-                updates={"is_deleted": True},
+                filters={"id": server_id, "deleted_at": None, "organization_id": tenant_id},
+                updates={"deleted_at": datetime.datetime.now(datetime.UTC)},
             )
             if not server:
                 raise ObjectNotFoundException(str(server_id), "OpcServer")

@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 from loguru import logger
@@ -100,7 +101,7 @@ class OrganizationService:
             if role is None:
                 raise OrganizationAccessDeniedException
 
-            organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
+            organization = await uow.organization.get({"id": organization_id, "deleted_at": None})
             if not organization:
                 raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
 
@@ -125,7 +126,7 @@ class OrganizationService:
 
             updates = request.model_dump(exclude_unset=True)
             organization = await uow.organization.update(
-                filters={"id": organization_id, "is_deleted": False},
+                filters={"id": organization_id, "deleted_at": None},
                 updates=updates,
             )
             if not organization:
@@ -157,13 +158,13 @@ class OrganizationService:
         async with uow:
             await self._check_access(uow, current_user.id, organization_id, is_full_access=True)
 
-            organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
+            organization = await uow.organization.get({"id": organization_id, "deleted_at": None})
             if not organization:
                 raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
 
             await uow.organization.update(
                 filters={"id": organization_id},
-                updates={"is_deleted": True},
+                updates={"deleted_at": datetime.datetime.now(datetime.UTC)},
             )
             await AuditLogService.log(
                 uow=uow,
@@ -397,7 +398,7 @@ class OrganizationService:
     @staticmethod
     async def _check_org_exists(uow: SQLUnitOfWork, organization_id: uuid.UUID) -> None:
         """Check if the organization exists and is not soft-deleted."""
-        organization = await uow.organization.get({"id": organization_id, "is_deleted": False})
+        organization = await uow.organization.get({"id": organization_id, "deleted_at": None})
         if not organization:
             raise ObjectNotFoundException(id_=organization_id, model_name="Organization")
 

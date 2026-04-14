@@ -39,12 +39,12 @@ class Sensor(Base, UUIDMixin, CreatedAtMixin, SoftDeleteMixin):
             "opc_server_id",
             "name",
             unique=True,
-            postgresql_where=text("NOT is_deleted"),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
         Index(
             "idx_active_sensor_node",
             "opc_server_id",
             "node_id",
-            postgresql_where=text("NOT is_deleted"),
+            postgresql_where=text("deleted_at IS NULL"),
         ),
     )
